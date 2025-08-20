@@ -12,17 +12,30 @@ import { AppService } from './app.service';
 		}),
 		TypeOrmModule.forRootAsync({
 			imports: [ConfigModule],
-			useFactory: (configService: ConfigService) => ({
-				type: 'mysql',
-				host: configService.get('DB_HOST'),
-				port: parseInt(configService.get('DB_PORT', '3306'), 10),
-				username: configService.get('DB_USERNAME'),
-				password: configService.get('DB_PASSWORD'),
-				database: configService.get('DB_NAME'),
-				entities: [__dirname + '/**/*.entity{.ts,.js}'],
-				synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
-			}),
 			inject: [ConfigService],
+			useFactory: (configService: ConfigService) => {
+				// NODE_ENV가 'production'일 때 (즉, Cloud Run 환경일 때) 소켓 경로 사용
+				const isProduction = configService.get('NODE_ENV') === 'production';
+
+				return {
+					type: 'mysql',
+
+					// Cloud SQL 소켓 경로
+					socketPath: isProduction
+						? `/cloudsql/${configService.get('DB_CONNECTION_NAME')}`
+						: undefined,
+
+					// 로컬 개발 환경에서는 host와 port를 사용합니다.
+					host: isProduction ? undefined : configService.get('DB_HOST'),
+					port: isProduction ? undefined : configService.get('DB_PORT'),
+
+					username: configService.get('DB_USERNAME'),
+					password: configService.get('DB_PASSWORD'),
+					database: configService.get('DB_NAME'),
+					entities: [__dirname + '/**/*.entity{.ts,.js}'],
+					synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
+				};
+			},
 		}),
 		TestDbModule,
 	],

@@ -23,6 +23,7 @@ RUN chown -R appuser:appgroup /usr/src/app
 # (보안 강화) non-root 사용자로 전환
 USER appuser
 
+ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 

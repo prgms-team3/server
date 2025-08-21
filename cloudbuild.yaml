@@ -1,0 +1,44 @@
+steps:
+    # 1. Docker 이미지 빌드
+    #    -t: 이미지 이름과 태그를 지정합니다. (Artifact Registry 경로)
+    #    $SHORT_SHA: Git 커밋 해시 앞 7자리를 태그로 사용하여 버전을 관리합니다.
+    - name: 'gcr.io/cloud-builders/docker'
+      args:
+          [
+              'build',
+              '-t',
+              '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${_SERVICE_NAME}:${SHORT_SHA}',
+              '.',
+          ]
+
+    # 2. 빌드된 이미지를 Artifact Registry에 푸시
+    - name: 'gcr.io/cloud-builders/docker'
+      args:
+          [
+              'push',
+              '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${_SERVICE_NAME}:${SHORT_SHA}',
+          ]
+
+    # 3. 새로운 이미지로 Cloud Run 서비스 배포
+    #    gcloud run deploy [서비스이름] --image [이미지경로] --region [리전]
+    - name: 'gcr.io/cloud-builders/gcloud'
+      args:
+          - 'run'
+          - 'deploy'
+          - '${_SERVICE_NAME}'
+          - '--image'
+          - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${_SERVICE_NAME}:${SHORT_SHA}'
+          - '--region'
+          - '${_REGION}'
+          - '--platform'
+          - 'managed'
+          - '--allow-unauthenticated' # 필요에 따라 설정 (공개 접근 허용)
+
+# 빌드된 이미지를 Artifact Registry에 저장
+images:
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${_SERVICE_NAME}:${SHORT_SHA}'
+
+# substitutions 기본값 설정 (트리거에서 덮어쓸 수 있음)
+substitutions:
+    _SERVICE_NAME: 'place-it-server'
+    _REGION: 'asia-northeast1'

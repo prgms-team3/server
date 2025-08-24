@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Workspace } from './workspace.entity';
-import { User } from '../../users/entities/user.entity';
+// import { User } from '../../../../users/entities/user.entity';
 
 @Entity('workspace_user')
 export class WorkspaceUser {
@@ -42,7 +42,7 @@ export class WorkspaceUser {
   @JoinColumn({ name: 'workspace_id' })
   workspace: Workspace;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  // @ManyToOne(() => User)
+  // @JoinColumn({ name: 'user_id' })
+  // user: User;
 }

@@ -1,9 +1,43 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import * as cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
 	try {
 		const app = await NestFactory.create(AppModule);
+
+		// 쿠키 파서 미들웨어 등록
+		app.use(cookieParser());
+
+		// validationPipe 등록 (타입 변환 활성화)
+		app.useGlobalPipes(
+			new ValidationPipe({
+				transform: true,
+				transformOptions: {enableImplicitConversion: true},
+				whitelist: true,
+				forbidNonWhitelisted: true,
+			}),
+		);
+
+		// Swagger 설정
+		const config = new DocumentBuilder()
+			.setTitle('Place-It API')
+			.setDescription('공간 예약 플랫폼 API 문서')
+			.setVersion('1.0')
+			.addBearerAuth()
+			.addTag('Workspaces', '워크스페이스 관리')
+			// .addTag('Groups', '그룹 관리')
+			// .addTag('User Groups', '사용자 그룹')
+			// .addTag('Spaces', '공간 관리')
+			// .addTag('Amenities', '시설 관리')
+			// .addTag('Reservations', '예약 관리')
+			// .addTag('Workspace Reservations', '워크스페이스 예약 관리')
+			.build();
+
+		const document = SwaggerModule.createDocument(app, config);
+		SwaggerModule.setup('api', app, document);
 
 		// Cloud Run에서는 0.0.0.0에 바인딩해야 합니다
 		const port = process.env.PORT || 8080;

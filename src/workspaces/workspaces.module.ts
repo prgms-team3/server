@@ -8,16 +8,16 @@ import { WorkspaceInvitationCode } from './entities/workspace-invitation-code.en
 import { InvitationHistory } from './entities/invitation-history.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Workspace,
-      WorkspaceUser,
-      WorkspaceInvitationCode,
-      InvitationHistory,
-    ]),
-  ],
-  controllers: [WorkspacesController],
-  providers: [WorkspacesService],
-  exports: [WorkspacesService],
+	imports: [
+		TypeOrmModule.forFeature([
+			Workspace,
+			WorkspaceUser,
+			WorkspaceInvitationCode,
+			InvitationHistory,
+		]),
+	],
+	controllers: [WorkspacesController],
+	providers: [WorkspacesService],
+	exports: [WorkspacesService],
 })
 export class WorkspacesModule {}

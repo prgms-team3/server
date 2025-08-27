@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Workspace } from './workspace.entity';
 import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
-import { User } from '../../../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum InvitationStatus {
 	SENT = 'SENT',

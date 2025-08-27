@@ -15,7 +15,7 @@ async function bootstrap() {
 		app.useGlobalPipes(
 			new ValidationPipe({
 				transform: true,
-				transformOptions: {enableImplicitConversion: true},
+				transformOptions: { enableImplicitConversion: true },
 				whitelist: true,
 				forbidNonWhitelisted: true,
 			}),
@@ -31,7 +31,6 @@ async function bootstrap() {
 			// .addTag('Groups', '그룹 관리')
 			// .addTag('User Groups', '사용자 그룹')
 			// .addTag('Spaces', '공간 관리')
-			// .addTag('Amenities', '시설 관리')
 			// .addTag('Reservations', '예약 관리')
 			// .addTag('Workspace Reservations', '워크스페이스 예약 관리')
 			.build();

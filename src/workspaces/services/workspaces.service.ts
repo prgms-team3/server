@@ -138,6 +138,24 @@ export class WorkspacesService {
 	}
 
 	/**
+	 * 워크스페이스 삭제
+	 */
+	async remove(id: number, userId: number): Promise<void> {
+		// 관리자 권한 확인
+		await this.checkUserIsAdmin(userId, id);
+
+		const workspace = await this.workspaceRepository.findOne({
+			where: { id },
+		});
+
+		if (!workspace) {
+			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
+		}
+
+		await this.workspaceRepository.remove(workspace);
+	}
+
+	/**
 	 * 워크스페이스에 사용자 추가
 	 */
 	async addUser(

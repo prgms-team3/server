@@ -8,8 +8,8 @@ import {
 	UpdateDateColumn,
 } from 'typeorm';
 import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
-import { GroupUser } from '../../groups/entities/group-user.entity';
-import { Reservation } from '../../reservations/entities/reservation.entity';
+// import { GroupUser } from '../../groups/entities/group-user.entity';
+// import { Reservation } from '../../reservations/entities/reservation.entity';
 import { InvitationHistory } from '../../workspaces/entities/invitation-history.entity';
 
 @Entity('user')
@@ -50,11 +50,11 @@ export class User {
 	@OneToMany(() => WorkspaceUser, (workspaceUser) => workspaceUser.user)
 	workspaceUsers: WorkspaceUser[];
 
-	@OneToMany(() => GroupUser, (groupUser) => groupUser.user)
-	groupUsers: GroupUser[];
+	// @OneToMany(() => GroupUser, (groupUser) => groupUser.user)
+	// groupUsers: GroupUser[];
 
-	@OneToMany(() => Reservation, (reservation) => reservation.user)
-	reservations: Reservation[];
+	// @OneToMany(() => Reservation, (reservation) => reservation.user)
+	// reservations: Reservation[];
 
 	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.createdByUser)
 	createdInvitations: InvitationHistory[];

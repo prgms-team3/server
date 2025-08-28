@@ -84,14 +84,24 @@ export class WorkspacesController {
 		return this.workspacesService.update(id, updateWorkspaceDto, req.user.id);
 	}
 
-	@Delete(':id')
-	@ApiOperation({ summary: '워크스페이스 삭제' })
+	@Patch(':id/deactivate')
+	@ApiOperation({ summary: '워크스페이스 비활성화' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
-	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 삭제되었습니다.' })
+	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 비활성화되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
-		return this.workspacesService.remove(id, req.user.id);
+	async deActivate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
+		return this.workspacesService.deActivate(id, req.user.id);
+	}
+
+	@Patch(':id/activate')
+	@ApiOperation({ summary: '워크스페이스 활성화' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 활성화되었습니다.' })
+	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
+	async activate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
+		return this.workspacesService.activate(id, req.user.id);
 	}
 
 	@Get(':id/users')

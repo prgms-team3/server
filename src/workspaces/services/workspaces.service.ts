@@ -100,9 +100,9 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스 삭제 (비활성화)
+	 * 워크스페이스 비활성화
 	 */
-	async remove(id: number, userId: number): Promise<void> {
+	async deActivate(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, id);
 
@@ -115,7 +115,26 @@ export class WorkspacesService {
 		}
 
 		workspace.isActive = false; // 비활성화
-		await this.workspaceRepository.save(workspace); // 해당 방식을 고수할 것인지 팀 논의 필요
+		await this.workspaceRepository.save(workspace);
+	}
+
+	/**
+	 * 워크스페이스 활성화
+	 */
+	async activate(id: number, userId: number): Promise<void> {
+		// 관리자 권한 확인
+		await this.checkUserIsAdmin(userId, id);
+
+		const workspace = await this.workspaceRepository.findOne({
+			where: { id, isActive: false },
+		});
+
+		if (!workspace) {
+			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
+		}
+
+		workspace.isActive = true; // 활성화
+		await this.workspaceRepository.save(workspace);
 	}
 
 	/**

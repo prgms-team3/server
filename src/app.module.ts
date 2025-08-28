@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TestDbModule } from './test-db/test-db.module';
 import { UsersModule } from './users/users.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 // import { SpacesModule } from './spaces/spaces.module';
@@ -37,11 +36,11 @@ import { AppService } from './app.service';
 					password: configService.get('DB_PASSWORD'),
 					database: configService.get('DB_NAME'),
 					entities: [__dirname + '/**/*.entity{.ts,.js}'],
+					dropSchema: configService.get('DB_DROP_SCHEMA') === 'true',
 					synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
 				};
 			},
 		}),
-		TestDbModule,
 		UsersModule,
 		WorkspacesModule,
 		// SpacesModule,

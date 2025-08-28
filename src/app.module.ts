@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TestDbModule } from './test-db/test-db.module';
+import { UsersModule } from './users/users.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
+import { SpacesModule } from './spaces/spaces.module';
+import { ReservationsModule } from './reservations/reservations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -38,6 +42,10 @@ import { AppService } from './app.service';
 			},
 		}),
 		TestDbModule,
+		UsersModule,
+		WorkspacesModule,
+		SpacesModule,
+		ReservationsModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

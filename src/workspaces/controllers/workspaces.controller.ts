@@ -168,6 +168,7 @@ export class WorkspacesController {
 		type: WorkspaceInvitationCode,
 	})
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
+	@ApiResponse({ status: 409, description: '이미 존재하는 초대 코드입니다.' })
 	async createInvitationCode(
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,

@@ -225,6 +225,16 @@ export class WorkspacesService {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
+		// 기존 활성 초대 코드 찾기
+		const existingCodes = await this.invitationCodeRepository.find({
+			where: { workspaceId, isActive: true },
+		});
+
+		// 기존 활성 초대 코드가 있으면 에러 반환
+		if (existingCodes.length > 0) {
+			throw new AppException(ErrorCode.ALEADY_EXIST_INVITATION_CODE);
+		}
+
 		const code = this.generateInvitationCode();
 		const invitationCode = this.invitationCodeRepository.create({
 			workspaceId,

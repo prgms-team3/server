@@ -42,7 +42,8 @@ export class AuthService {
 				);
 			}
 
-			const nickname = kakaoUser.properties?.nickname || kakaoUser.kakao_account?.profile?.nickname;
+			const nickname =
+				kakaoUser.properties?.nickname || kakaoUser.kakao_account?.profile?.nickname;
 			if (!nickname) {
 				throw new BadRequestException(
 					'카카오 계정에서 닉네임 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.',

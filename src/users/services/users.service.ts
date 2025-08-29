@@ -14,14 +14,14 @@ export class UsersService {
 	) {}
 
 	async create(createUserDto: CreateUserDto): Promise<User> {
-		const { email, name, phone } = createUserDto;
+		const { email } = createUserDto;
 
 		const existingUser = await this.userRepository.findOne({ where: { email } });
 		if (existingUser) {
 			throw new ConflictException(ErrorCode.USER_ALREADY_EXISTS);
 		}
 
-		const user = this.userRepository.create({ email, name, phone });
+		const user = this.userRepository.create(createUserDto);
 		return this.userRepository.save(user);
 	}
 
@@ -35,6 +35,10 @@ export class UsersService {
 			throw new NotFoundException(ErrorCode.USER_NOT_FOUND);
 		}
 		return user;
+	}
+
+	async findByProviderId(providerId: string, provider: string): Promise<User | null> {
+		return this.userRepository.findOne({ where: { providerId, provider } });
 	}
 
 	async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {

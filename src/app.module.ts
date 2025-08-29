@@ -7,6 +7,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 // import { ReservationsModule } from './reservations/reservations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
 	imports: [
@@ -43,6 +44,7 @@ import { AppService } from './app.service';
 		}),
 		UsersModule,
 		WorkspacesModule,
+		AuthModule,
 		// SpacesModule,
 		// ReservationsModule,
 	],

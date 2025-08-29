@@ -13,7 +13,7 @@ import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 // import { Reservation } from '../../reservations/entities/reservation.entity';
 import { InvitationHistory } from '../../workspaces/entities/invitation-history.entity';
 
-@Entity('user')
+@Entity('users')
 export class User {
 	@ApiProperty({ description: 'User ID', example: 1 })
 	@PrimaryGeneratedColumn({ name: 'id', type: 'int' })

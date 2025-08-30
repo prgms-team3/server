@@ -56,10 +56,7 @@ export class User {
 	currentHashedRefreshToken?: string;
 
 	/* Relations */
-	@OneToMany(
-		() => WorkspaceUser,
-		(workspaceUser) => workspaceUser.user,
-	)
+	@OneToMany(() => WorkspaceUser, (workspaceUser) => workspaceUser.user)
 	workspaceUsers: WorkspaceUser[];
 
 	// @OneToMany(() => GroupUser, (groupUser) => groupUser.user)
@@ -68,15 +65,9 @@ export class User {
 	// @OneToMany(() => Reservation, (reservation) => reservation.user)
 	// reservations: Reservation[];
 
-	@OneToMany(
-		() => InvitationHistory,
-		(invitationHistory) => invitationHistory.createdByUser,
-	)
+	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.createdByUser)
 	createdInvitations: InvitationHistory[];
 
-	@OneToMany(
-		() => InvitationHistory,
-		(invitationHistory) => invitationHistory.usedByUser,
-	)
+	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.usedByUser)
 	usedInvitations: InvitationHistory[];
 }

@@ -40,7 +40,9 @@ export class AuthController {
 				// JWT 디코딩 (검증 없이)
 				const base64Payload = accessToken.split('.')[1];
 				if (base64Payload) {
-					decodedAccessToken = JSON.parse(Buffer.from(base64Payload, 'base64').toString());
+					decodedAccessToken = JSON.parse(
+						Buffer.from(base64Payload, 'base64').toString(),
+					);
 					accessTokenValid = true;
 					// 만료 시간 확인
 					const now = Math.floor(Date.now() / 1000);
@@ -73,7 +75,9 @@ export class AuthController {
 			try {
 				const base64Payload = refreshToken.split('.')[1];
 				if (base64Payload) {
-					decodedRefreshToken = JSON.parse(Buffer.from(base64Payload, 'base64').toString());
+					decodedRefreshToken = JSON.parse(
+						Buffer.from(base64Payload, 'base64').toString(),
+					);
 					refreshTokenValid = true;
 					// 만료 시간 확인
 					const now = Math.floor(Date.now() / 1000);

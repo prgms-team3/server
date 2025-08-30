@@ -51,8 +51,15 @@ export class User {
 	@Column({ name: 'is_active', type: 'boolean', default: true })
 	isActive: boolean;
 
+	@ApiProperty({ description: 'Hashed refresh token', required: false })
+	@Column({ name: 'current_hashed_refresh_token', type: 'text', nullable: true })
+	currentHashedRefreshToken?: string;
+
 	/* Relations */
-	@OneToMany(() => WorkspaceUser, (workspaceUser) => workspaceUser.user)
+	@OneToMany(
+		() => WorkspaceUser,
+		(workspaceUser) => workspaceUser.user,
+	)
 	workspaceUsers: WorkspaceUser[];
 
 	// @OneToMany(() => GroupUser, (groupUser) => groupUser.user)
@@ -61,9 +68,15 @@ export class User {
 	// @OneToMany(() => Reservation, (reservation) => reservation.user)
 	// reservations: Reservation[];
 
-	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.createdByUser)
+	@OneToMany(
+		() => InvitationHistory,
+		(invitationHistory) => invitationHistory.createdByUser,
+	)
 	createdInvitations: InvitationHistory[];
 
-	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.usedByUser)
+	@OneToMany(
+		() => InvitationHistory,
+		(invitationHistory) => invitationHistory.usedByUser,
+	)
 	usedInvitations: InvitationHistory[];
 }

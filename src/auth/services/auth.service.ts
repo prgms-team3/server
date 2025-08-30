@@ -1,18 +1,29 @@
 import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
-// import { JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { firstValueFrom } from 'rxjs';
 import { Response } from 'express';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../../users/services/users.service';
+
+interface KakaoUser {
+	id: number;
+	kakao_account?: {
+		email?: string;
+		profile?: {
+			nickname?: string;
+		};
+	};
+}
 
 @Injectable()
 export class AuthService {
 	constructor(
 		private readonly configService: ConfigService,
 		private readonly httpService: HttpService,
+		private readonly jwtService: JwtService,
 		private readonly usersService: UsersService,
-		// private readonly jwtService: JwtService,
 	) {}
 
 	getSocialLoginUrl(provider: string): { url: string } {
@@ -30,11 +41,7 @@ export class AuthService {
 	async socialLogin(provider: string, code: string, res: Response): Promise<string> {
 		if (provider === 'kakao') {
 			const accessToken = await this.getKakaoAccessToken(code);
-			const kakaoUser: {
-				id: number;
-				kakao_account?: { email?: string; profile?: { nickname?: string } };
-				properties?: { nickname?: string };
-			} = await this.getKakaoUserInfo(accessToken);
+			const kakaoUser: KakaoUser = await this.getKakaoUserInfo(accessToken);
 
 			if (!kakaoUser.kakao_account?.email) {
 				throw new BadRequestException(
@@ -42,8 +49,7 @@ export class AuthService {
 				);
 			}
 
-			const nickname =
-				kakaoUser.properties?.nickname || kakaoUser.kakao_account?.profile?.nickname;
+			const nickname = kakaoUser.kakao_account?.profile?.nickname;
 			if (!nickname) {
 				throw new BadRequestException(
 					'카카오 계정에서 닉네임 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.',
@@ -60,14 +66,26 @@ export class AuthService {
 				});
 			}
 
-			// const jwtPayload = { sub: user.id, email: user.email };
-			// const jwt = this.jwtService.sign(jwtPayload);
+			const newAccessToken = await this.getAccessToken(user.id, user.email);
+			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
 
-			// res.cookie('access_token', jwt, {
-			// 	httpOnly: true,
-			// 	secure: this.configService.get('NODE_ENV') === 'production',
-			// 	sameSite: 'lax',
-			// });
+			await this.saveRefreshToken(newRefreshToken, user.id);
+
+			res.cookie('access_token', newAccessToken, {
+				httpOnly: true,
+				secure: this.configService.get('NODE_ENV') === 'production',
+				sameSite: 'lax',
+				maxAge:
+					parseInt(this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'), 10) * 1000,
+			});
+
+			res.cookie('refresh_token', newRefreshToken, {
+				httpOnly: true,
+				secure: this.configService.get('NODE_ENV') === 'production',
+				sameSite: 'lax',
+				maxAge:
+					parseInt(this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'), 10) * 1000,
+			});
 
 			return this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
 		}
@@ -91,7 +109,7 @@ export class AuthService {
 
 		try {
 			const response = await firstValueFrom(
-				this.httpService.post(url, new URLSearchParams(data as any).toString(), {
+				this.httpService.post(url, new URLSearchParams(data).toString(), {
 					headers,
 				}),
 			);
@@ -101,7 +119,7 @@ export class AuthService {
 		}
 	}
 
-	private async getKakaoUserInfo(accessToken: string): Promise<any> {
+	private async getKakaoUserInfo(accessToken: string): Promise<KakaoUser> {
 		const url = 'https://kapi.kakao.com/v2/user/me';
 		const headers = {
 			Authorization: `Bearer ${accessToken}`,
@@ -116,7 +134,50 @@ export class AuthService {
 		}
 	}
 
-	async logout(res: Response): Promise<void> {
-		// res.clearCookie('access_token');
+	async getAccessToken(userId: number, email: string): Promise<string> {
+		const payload = { sub: userId, email };
+		const accessToken = await this.jwtService.signAsync(payload, {
+			secret: this.configService.getOrThrow<string>('JWT_ACCESS_TOKEN_SECRET'),
+			expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
+		});
+		return accessToken;
+	}
+
+	async getRefreshToken(userId: number, email: string): Promise<string> {
+		const payload = { sub: userId, email };
+		const refreshToken = await this.jwtService.signAsync(payload, {
+			secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
+			expiresIn: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
+		});
+		return refreshToken;
+	}
+
+	async saveRefreshToken(refreshToken: string, userId: number) {
+		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+		await this.usersService.setCurrentRefreshToken(userId, currentHashedRefreshToken);
+	}
+
+	async refreshAccessToken(refreshToken: string) {
+		try {
+			const payload = await this.jwtService.verifyAsync(refreshToken, {
+				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
+			});
+
+			const user = await this.usersService.getUserIfRefreshTokenMatches(refreshToken, payload.sub);
+			if (!user) {
+				throw new UnauthorizedException('Invalid refresh token');
+			}
+
+			const newAccessToken = await this.getAccessToken(user.id, user.email);
+			return { accessToken: newAccessToken };
+		} catch (error) {
+			throw new UnauthorizedException('Invalid refresh token');
+		}
+	}
+
+	async logout(res: Response, userId: number): Promise<void> {
+		await this.usersService.removeRefreshToken(userId);
+		res.clearCookie('access_token');
+		res.clearCookie('refresh_token');
 	}
 }

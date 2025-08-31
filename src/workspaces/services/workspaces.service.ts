@@ -138,7 +138,7 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스 삭제
+	 * 워크스페이스 삭제 (soft delete)
 	 */
 	async remove(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
@@ -152,7 +152,8 @@ export class WorkspacesService {
 			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
 		}
 
-		await this.workspaceRepository.remove(workspace);
+		workspace.deleted = true;
+		await this.workspaceRepository.save(workspace);
 	}
 
 	/**

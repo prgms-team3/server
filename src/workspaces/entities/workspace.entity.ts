@@ -39,6 +39,10 @@ export class Workspace {
 	@Column({ name: 'is_active', type: 'boolean', default: true })
 	isActive: boolean;
 
+	@ApiProperty({ description: 'Whether workspace is deleted', example: false })
+	@Column({ name: 'deleted', type: 'boolean', default: false })
+	deleted: boolean;
+
 	/* Relations */
 	@OneToMany(() => WorkspaceUser, (workspaceUser) => workspaceUser.workspace)
 	workspaceUsers: WorkspaceUser[];

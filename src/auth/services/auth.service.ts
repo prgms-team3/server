@@ -67,28 +67,11 @@ export class AuthService {
 				});
 			}
 
+			// 토큰 발급 및 쿠키 설정
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
 			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
-
 			await this.saveRefreshToken(newRefreshToken, user.id);
-
-			res.cookie('access_token', newAccessToken, {
-				httpOnly: true,
-				secure: this.configService.get('NODE_ENV') === 'production',
-				sameSite: 'lax',
-				maxAge: parseJwtExpiration(
-					this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
-				),
-			});
-
-			res.cookie('refresh_token', newRefreshToken, {
-				httpOnly: true,
-				secure: this.configService.get('NODE_ENV') === 'production',
-				sameSite: 'lax',
-				maxAge: parseJwtExpiration(
-					this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
-				),
-			});
+			this.setTokenCookies(res, newAccessToken, newRefreshToken);
 
 			return this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
 		}
@@ -117,7 +100,7 @@ export class AuthService {
 				}),
 			);
 			return response.data.access_token;
-		} catch (error) {
+		} catch {
 			throw new UnauthorizedException('카카오 토큰 발급에 실패했습니다.');
 		}
 	}
@@ -132,7 +115,7 @@ export class AuthService {
 		try {
 			const response = await firstValueFrom(this.httpService.get(url, { headers }));
 			return response.data;
-		} catch (error) {
+		} catch {
 			throw new UnauthorizedException('카카오 사용자 정보 조회에 실패했습니다.');
 		}
 	}
@@ -157,10 +140,33 @@ export class AuthService {
 
 	async saveRefreshToken(refreshToken: string, userId: number) {
 		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-		await this.usersService.setCurrentRefreshToken(userId, currentHashedRefreshToken);
+		await this.usersService.saveHashedRefreshToken(userId, currentHashedRefreshToken);
 	}
 
-	async refreshAccessToken(refreshToken: string) {
+	/**
+	 * JWT 토큰들을 쿠키에 설정하는 헬퍼 함수
+	 */
+	setTokenCookies(res: Response, accessToken: string, refreshToken: string): void {
+		res.cookie('access_token', accessToken, {
+			httpOnly: true,
+			secure: this.configService.get('NODE_ENV') === 'production',
+			sameSite: 'lax',
+			maxAge: parseJwtExpiration(
+				this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
+			),
+		});
+
+		res.cookie('refresh_token', refreshToken, {
+			httpOnly: true,
+			secure: this.configService.get('NODE_ENV') === 'production',
+			sameSite: 'lax',
+			maxAge: parseJwtExpiration(
+				this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
+			),
+		});
+	}
+
+	async refreshTokenPair(refreshToken: string) {
 		try {
 			const payload = await this.jwtService.verifyAsync(refreshToken, {
 				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
@@ -174,9 +180,17 @@ export class AuthService {
 				throw new UnauthorizedException('Invalid refresh token');
 			}
 
+			// 새로운 토큰들 발급
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
-			return { accessToken: newAccessToken };
-		} catch (error) {
+			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
+			// 새로운 refresh token을 데이터베이스에 저장
+			await this.saveRefreshToken(newRefreshToken, user.id);
+
+			return {
+				accessToken: newAccessToken,
+				refreshToken: newRefreshToken,
+			};
+		} catch {
 			throw new UnauthorizedException('Invalid refresh token');
 		}
 	}

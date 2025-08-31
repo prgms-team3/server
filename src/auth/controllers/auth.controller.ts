@@ -1,4 +1,15 @@
-import { Controller, Get, Param, Post, Query, Redirect, Req, Res, UseGuards } from '@nestjs/common';
+import {
+	Controller,
+	Get,
+	Param,
+	Post,
+	Query,
+	Redirect,
+	Req,
+	Res,
+	UseGuards,
+	UnauthorizedException,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 
@@ -147,22 +158,17 @@ export class AuthController {
 		const refreshToken = req.cookies?.refresh_token;
 
 		if (!refreshToken) {
-			throw new Error('Refresh token not found in cookies');
+			throw new UnauthorizedException('Refresh token not found in cookies');
 		}
 
-		const result = await this.authService.refreshAccessToken(refreshToken);
+		// 토큰 갱신
+		const result = await this.authService.refreshTokenPair(refreshToken);
 
-		// 새로운 access_token을 쿠키에 자동으로 설정
-		res.cookie('access_token', result.accessToken, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'lax',
-			maxAge: parseJwtExpiration(process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME || '1d'),
-		});
+		// 새로운 토큰들을 쿠키에 설정
+		this.authService.setTokenCookies(res, result.accessToken, result.refreshToken);
 
 		return {
-			...result,
-			message: '액세스 토큰이 갱신되었습니다. 쿠키에 자동으로 설정되었습니다.',
+			message: '액세스 토큰과 리프레시 토큰이 갱신되었습니다.',
 		};
 	}
 

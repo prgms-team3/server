@@ -55,7 +55,7 @@ export class UsersService {
 		}
 	}
 
-	async setCurrentRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
+	async saveHashedRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
 		await this.userRepository.update(userId, {
 			currentHashedRefreshToken: hashedRefreshToken,
 		});

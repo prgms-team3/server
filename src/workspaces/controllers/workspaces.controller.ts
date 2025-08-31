@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { WorkspacesService } from '../services/workspaces.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
@@ -22,6 +23,8 @@ import { WorkspaceUser } from '../entities/workspace-user.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 
 @ApiTags('Workspaces')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('workspaces')
 export class WorkspacesController {
 	constructor(private readonly workspacesService: WorkspacesService) {}
@@ -38,7 +41,7 @@ export class WorkspacesController {
 		@Body() createWorkspaceDto: CreateWorkspaceDto,
 		@Request() req: any,
 	): Promise<Workspace> {
-		return this.workspacesService.create(createWorkspaceDto, req.user.id);
+		return this.workspacesService.create(createWorkspaceDto, req.user.sub);
 	}
 
 	@Get('my')
@@ -49,7 +52,7 @@ export class WorkspacesController {
 		type: [Workspace],
 	})
 	async findMyWorkspaces(@Request() req: any): Promise<Workspace[]> {
-		return this.workspacesService.findUserWorkspaces(req.user.id);
+		return this.workspacesService.findUserWorkspaces(req.user.sub);
 	}
 
 	@Get(':id')
@@ -63,7 +66,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스에 접근할 권한이 없습니다.' })
 	async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<Workspace> {
-		return this.workspacesService.findOne(id, req.user.id);
+		return this.workspacesService.findOne(id, req.user.sub);
 	}
 
 	@Patch(':id')
@@ -81,7 +84,7 @@ export class WorkspacesController {
 		@Body() updateWorkspaceDto: UpdateWorkspaceDto,
 		@Request() req: any,
 	): Promise<Workspace> {
-		return this.workspacesService.update(id, updateWorkspaceDto, req.user.id);
+		return this.workspacesService.update(id, updateWorkspaceDto, req.user.sub);
 	}
 
 	@Patch(':id/deactivate')
@@ -91,7 +94,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async deActivate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
-		return this.workspacesService.deActivate(id, req.user.id);
+		return this.workspacesService.deActivate(id, req.user.sub);
 	}
 
 	@Patch(':id/activate')
@@ -101,7 +104,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async activate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
-		return this.workspacesService.activate(id, req.user.id);
+		return this.workspacesService.activate(id, req.user.sub);
 	}
 
 	@Delete(':id')
@@ -111,7 +114,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
-		return this.workspacesService.remove(id, req.user.id);
+		return this.workspacesService.remove(id, req.user.sub);
 	}
 
 	@Get(':id/users')
@@ -127,7 +130,7 @@ export class WorkspacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
 	): Promise<WorkspaceUser[]> {
-		return this.workspacesService.getWorkspaceUsers(id, req.user.id);
+		return this.workspacesService.getWorkspaceUsers(id, req.user.sub);
 	}
 
 	@Post(':id/users')
@@ -141,7 +144,7 @@ export class WorkspacesController {
 		@Body() addUserDto: AddUserToWorkspaceDto,
 		@Request() req: any,
 	): Promise<void> {
-		return this.workspacesService.addUser(id, addUserDto, req.user.id);
+		return this.workspacesService.addUser(id, addUserDto, req.user.sub);
 	}
 
 	@Delete(':id/users/:userId')
@@ -156,7 +159,7 @@ export class WorkspacesController {
 		@Param('userId', ParseIntPipe) userId: number,
 		@Request() req: any,
 	): Promise<void> {
-		return this.workspacesService.removeUser(id, userId, req.user.id);
+		return this.workspacesService.removeUser(id, userId, req.user.sub);
 	}
 
 	@Post(':id/invitation-codes')
@@ -173,7 +176,7 @@ export class WorkspacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
 	): Promise<WorkspaceInvitationCode> {
-		return this.workspacesService.createInvitationCode(id, req.user.id);
+		return this.workspacesService.createInvitationCode(id, req.user.sub);
 	}
 
 	@Get(':id/invitation-codes')
@@ -189,7 +192,7 @@ export class WorkspacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
 	): Promise<WorkspaceInvitationCode[]> {
-		return this.workspacesService.getInvitationCodes(id, req.user.id);
+		return this.workspacesService.getInvitationCodes(id, req.user.sub);
 	}
 
 	@Put(':id/invitation-codes')
@@ -201,7 +204,7 @@ export class WorkspacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
 	): Promise<WorkspaceInvitationCode> {
-		return this.workspacesService.regenerateInvitationCode(id, req.user.id);
+		return this.workspacesService.regenerateInvitationCode(id, req.user.sub);
 	}
 
 	@Delete('invitation-codes/:codeId')
@@ -214,7 +217,7 @@ export class WorkspacesController {
 		@Param('codeId', ParseIntPipe) codeId: number,
 		@Request() req: any,
 	): Promise<void> {
-		return this.workspacesService.deleteInvitationCode(codeId, req.user.id);
+		return this.workspacesService.deleteInvitationCode(codeId, req.user.sub);
 	}
 
 	@Post('join')
@@ -230,6 +233,6 @@ export class WorkspacesController {
 		@Body() useInvitationCodeDto: UseInvitationCodeDto,
 		@Request() req: any,
 	): Promise<Workspace> {
-		return this.workspacesService.useInvitationCode(useInvitationCodeDto, req.user.id);
+		return this.workspacesService.useInvitationCode(useInvitationCodeDto, req.user.sub);
 	}
 }

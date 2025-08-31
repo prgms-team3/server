@@ -152,7 +152,9 @@ export class AuthService {
 			httpOnly: true,
 			secure: this.configService.get('NODE_ENV') === 'production',
 			sameSite: 'lax',
-			maxAge: parseJwtExpiration(this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME')),
+			maxAge: parseJwtExpiration(
+				this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
+			),
 		});
 
 		res.cookie('refresh_token', refreshToken, {
@@ -171,7 +173,10 @@ export class AuthService {
 				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
 			});
 
-			const user = await this.usersService.getUserIfRefreshTokenMatches(refreshToken, payload.sub);
+			const user = await this.usersService.getUserIfRefreshTokenMatches(
+				refreshToken,
+				payload.sub,
+			);
 			if (!user) {
 				throw new UnauthorizedException('Invalid refresh token');
 			}

@@ -5,19 +5,20 @@ import { Response, Request } from 'express';
 import { AuthService } from '../services/auth.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
+import { parseJwtExpiration } from '../../common/utils/time.util';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
 	constructor(private readonly authService: AuthService) {}
 
-	@Post('logout')
+	@Post('signout')
 	@ApiOperation({ summary: '로그아웃' })
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	async logout(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
+	async signout(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Response) {
 		// req.user는 JwtAuthGuard에 의해 주입됩니다.
-		await this.authService.logout(res, req.user.sub);
+		await this.authService.signout(res, req.user.sub);
 		return { message: '로그아웃 되었습니다.' };
 	}
 
@@ -156,7 +157,7 @@ export class AuthController {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
 			sameSite: 'lax',
-			maxAge: parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME || '3600', 10) * 1000,
+			maxAge: parseJwtExpiration(process.env.JWT_ACCESS_TOKEN_EXPIRATION_TIME || '1d'),
 		});
 
 		return {

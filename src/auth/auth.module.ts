@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -11,7 +11,7 @@ import { UsersModule } from '../users/users.module';
 @Module({
 	imports: [
 		HttpModule,
-		UsersModule,
+		forwardRef(() => UsersModule),
 		ConfigModule,
 		JwtModule.registerAsync({
 			imports: [ConfigModule],
@@ -26,5 +26,6 @@ import { UsersModule } from '../users/users.module';
 	],
 	controllers: [AuthController],
 	providers: [AuthService, JwtAuthGuard],
+	exports: [JwtAuthGuard, JwtModule], // JwtAuthGuard와 JwtModule을 다른 모듈에서 사용할 수 있도록 export
 })
 export class AuthModule {}

@@ -1,7 +1,14 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+	Injectable,
+	CanActivate,
+	ExecutionContext,
+	UnauthorizedException,
+	Inject,
+	forwardRef,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -25,7 +32,7 @@ export class JwtAuthGuard implements CanActivate {
 
 			// req.user에 사용자 정보 저장
 			request['user'] = payload;
-		} catch {
+		} catch (error) {
 			throw new UnauthorizedException('유효하지 않은 토큰입니다.');
 		}
 

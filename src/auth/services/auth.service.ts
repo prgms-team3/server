@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../../users/services/users.service';
+import { parseJwtExpiration } from '../../common/utils/time.util';
 
 interface KakaoUser {
 	id: number;
@@ -75,22 +76,18 @@ export class AuthService {
 				httpOnly: true,
 				secure: this.configService.get('NODE_ENV') === 'production',
 				sameSite: 'lax',
-				maxAge:
-					parseInt(
-						this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
-						10,
-					) * 1000,
+				maxAge: parseJwtExpiration(
+					this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
+				),
 			});
 
 			res.cookie('refresh_token', newRefreshToken, {
 				httpOnly: true,
 				secure: this.configService.get('NODE_ENV') === 'production',
 				sameSite: 'lax',
-				maxAge:
-					parseInt(
-						this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
-						10,
-					) * 1000,
+				maxAge: parseJwtExpiration(
+					this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
+				),
 			});
 
 			return this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
@@ -184,9 +181,26 @@ export class AuthService {
 		}
 	}
 
-	async logout(res: Response, userId: number): Promise<void> {
-		await this.usersService.removeRefreshToken(userId);
-		res.clearCookie('access_token');
-		res.clearCookie('refresh_token');
+	async signout(res: Response, userId: number): Promise<void> {
+		try {
+			await this.usersService.removeRefreshToken(userId);
+
+			// 쿠키 생성 시와 동일한 옵션으로 삭제
+			const cookieOptions = {
+				httpOnly: true,
+				secure: this.configService.get('NODE_ENV') === 'production',
+				sameSite: 'lax' as const,
+			};
+
+			res.clearCookie('access_token', cookieOptions);
+			res.clearCookie('refresh_token', cookieOptions);
+
+			console.log(`User ${userId} signed out successfully`);
+		} catch (error) {
+			console.error(`Failed to sign out user ${userId}:`, error);
+			// 에러가 발생해도 쿠키는 삭제 시도
+			res.clearCookie('access_token');
+			res.clearCookie('refresh_token');
+		}
 	}
 }

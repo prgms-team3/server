@@ -1,17 +1,17 @@
+import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Workspace } from '../entities/workspace.entity';
-import { WorkspaceUser } from '../entities/workspace-user.entity';
-import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
-import { InvitationHistory, InvitationStatus } from '../entities/invitation-history.entity';
+import { ErrorCode } from '../../common/constants/error-codes';
+import { AppException } from '../../common/exceptions/app.exception';
+import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
-import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
-import { AppException } from '../../common/exceptions/app.exception';
-import { ErrorCode } from '../../common/constants/error-codes';
-import * as crypto from 'crypto';
+import { InvitationHistory, InvitationStatus } from '../entities/invitation-history.entity';
+import { Workspace } from '../entities/workspace.entity';
+import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
+import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
 
 @Injectable()
 export class WorkspacesService {
@@ -34,11 +34,11 @@ export class WorkspacesService {
 		const workspace = this.workspaceRepository.create(createWorkspaceDto);
 		const savedWorkspace = await this.workspaceRepository.save(workspace);
 
-		// 생성자를 관리자로 추가
+		// 생성자를 OWNER로 추가
 		const workspaceUser = this.workspaceUserRepository.create({
 			workspaceId: savedWorkspace.id,
 			userId,
-			isAdmin: true,
+			role: WorkspaceRole.OWNER,
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
 
@@ -85,7 +85,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<Workspace> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, id);
+		await this.checkUserIsOwner(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
@@ -104,7 +104,7 @@ export class WorkspacesService {
 	 */
 	async deActivate(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, id);
+		await this.checkUserIsOwner(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
@@ -123,7 +123,7 @@ export class WorkspacesService {
 	 */
 	async activate(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, id);
+		await this.checkUserIsOwner(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: false },
@@ -142,7 +142,7 @@ export class WorkspacesService {
 	 */
 	async remove(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, id);
+		await this.checkUserIsOwner(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id },
@@ -164,7 +164,7 @@ export class WorkspacesService {
 		adminUserId: number,
 	): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(adminUserId, workspaceId);
+		await this.checkUserIsOwner(adminUserId, workspaceId);
 
 		// 이미 워크스페이스에 속해있는지 확인
 		const existingUser = await this.workspaceUserRepository.findOne({
@@ -178,7 +178,7 @@ export class WorkspacesService {
 		const workspaceUser = this.workspaceUserRepository.create({
 			workspaceId,
 			userId: addUserDto.userId,
-			isAdmin: addUserDto.isAdmin || false,
+			role: WorkspaceRole.MEMBER, // 기본값으로 MEMBER 설정
 		});
 
 		await this.workspaceUserRepository.save(workspaceUser);
@@ -189,7 +189,7 @@ export class WorkspacesService {
 	 */
 	async removeUser(workspaceId: number, userId: number, adminUserId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(adminUserId, workspaceId);
+		await this.checkUserIsOwner(adminUserId, workspaceId);
 
 		const workspaceUser = await this.workspaceUserRepository.findOne({
 			where: { workspaceId, userId },
@@ -223,7 +223,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, workspaceId);
+		await this.checkUserIsOwner(userId, workspaceId);
 
 		const code = this.generateInvitationCode();
 		const invitationCode = this.invitationCodeRepository.create({
@@ -242,7 +242,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode[]> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, workspaceId);
+		await this.checkUserIsOwner(userId, workspaceId);
 
 		return this.invitationCodeRepository.find({
 			where: { workspaceId, isActive: true },
@@ -258,7 +258,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, workspaceId);
+		await this.checkUserIsOwner(userId, workspaceId);
 
 		// 기존 활성 초대 코드 찾기
 		const existingCodes = await this.invitationCodeRepository.find({
@@ -295,7 +295,7 @@ export class WorkspacesService {
 		}
 
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, invitationCode.workspaceId);
+		await this.checkUserIsOwner(userId, invitationCode.workspaceId);
 
 		invitationCode.isActive = false;
 		await this.invitationCodeRepository.save(invitationCode);
@@ -330,7 +330,7 @@ export class WorkspacesService {
 		const workspaceUser = this.workspaceUserRepository.create({
 			workspaceId: invitationCode.workspaceId,
 			userId,
-			isAdmin: false,
+			role: WorkspaceRole.MEMBER, // 초대받은 사용자는 기본적으로 MEMBER
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
 
@@ -363,14 +363,30 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 사용자가 워크스페이스 관리자인지 확인
+	 * 특정 역할 이상인지 확인
 	 */
-	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
-		});
+	async hasMinimumRole(
+		userId: number,
+		workspaceId: number,
+		minimumRole: WorkspaceRole,
+	): Promise<boolean> {
+		const userRole = await this.getUserRole(userId, workspaceId);
+		if (!userRole) return false;
 
-		if (!workspaceUser) {
+		const roleHierarchy = {
+			[WorkspaceRole.MEMBER]: 0,
+			[WorkspaceRole.OWNER]: 1,
+		};
+
+		return roleHierarchy[userRole] >= roleHierarchy[minimumRole];
+	}
+
+	/**
+	 * 사용자가 OWNER 권한이 있는지 확인
+	 */
+	private async checkUserIsOwner(userId: number, workspaceId: number): Promise<void> {
+		const hasPermission = await this.hasMinimumRole(userId, workspaceId, WorkspaceRole.OWNER);
+		if (!hasPermission) {
 			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
 		}
 	}
@@ -380,5 +396,15 @@ export class WorkspacesService {
 	 */
 	private generateInvitationCode(): string {
 		return crypto.randomBytes(8).toString('hex').toUpperCase();
+	}
+
+	/**
+	 * 사용자 역할 확인 헬퍼 메서드
+	 */
+	async getUserRole(userId: number, workspaceId: number): Promise<WorkspaceRole | null> {
+		const workspaceUser = await this.workspaceUserRepository.findOne({
+			where: { userId, workspaceId },
+		});
+		return workspaceUser?.role || null;
 	}
 }

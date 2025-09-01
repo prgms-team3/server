@@ -42,7 +42,7 @@ export const ErrorCode = {
 	},
 	WORKSPACE_AUTHORIZATION_DENIED: {
 		code: 'WORKSPACE_AUTHORIZATION_DENIED',
-		message: '워크스페이스 관리자 권한이 없습니다.',
+		message: '워크스페이스 작업을 수행할 권한이 없습니다.',
 		status: HttpStatus.FORBIDDEN,
 	},
 	INVALID_INVITATION_CODE: {

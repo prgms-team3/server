@@ -9,8 +9,8 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { Workspace } from './workspace.entity';
 import { InvitationHistory } from './invitation-history.entity';
+import { Workspace } from './workspace.entity';
 
 @Entity('workspace_invitation_code')
 export class WorkspaceInvitationCode {

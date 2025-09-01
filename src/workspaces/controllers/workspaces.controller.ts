@@ -1,28 +1,33 @@
 import {
-	Controller,
-	Get,
-	Post,
 	Body,
-	Patch,
-	Param,
+	Controller,
 	Delete,
-	UseGuards,
-	Request,
+	Get,
+	Param,
 	ParseIntPipe,
+	Patch,
+	Post,
 	Put,
+	Request,
+	UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { WorkspacesService } from '../services/workspaces.service';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { WorkspaceRoles } from '../../auth/decorators/workspace-role.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { WorkspaceRoleGuard } from '../../auth/guards/workspace-role.guard';
+import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
-import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
 import { Workspace } from '../entities/workspace.entity';
-import { WorkspaceUser } from '../entities/workspace-user.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
+import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
+import { WorkspacesService } from '../services/workspaces.service';
 
 @ApiTags('Workspaces')
+@ApiBearerAuth()
 @Controller('workspaces')
+@UseGuards(JwtAuthGuard)
 export class WorkspacesController {
 	constructor(private readonly workspacesService: WorkspacesService) {}
 
@@ -67,7 +72,9 @@ export class WorkspacesController {
 	}
 
 	@Patch(':id')
-	@ApiOperation({ summary: '워크스페이스 정보 수정' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스 정보 수정 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
 		status: 200,
@@ -85,7 +92,9 @@ export class WorkspacesController {
 	}
 
 	@Patch(':id/deactivate')
-	@ApiOperation({ summary: '워크스페이스 비활성화' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스 비활성화 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 비활성화되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
@@ -95,7 +104,9 @@ export class WorkspacesController {
 	}
 
 	@Patch(':id/activate')
-	@ApiOperation({ summary: '워크스페이스 활성화' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스 활성화 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 활성화되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
@@ -105,7 +116,9 @@ export class WorkspacesController {
 	}
 
 	@Delete(':id')
-	@ApiOperation({ summary: '워크스페이스 삭제' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스 삭제 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 삭제되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
@@ -115,7 +128,9 @@ export class WorkspacesController {
 	}
 
 	@Get(':id/users')
-	@ApiOperation({ summary: '워크스페이스 사용자 목록 조회' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스 사용자 목록 조회 (멤버 이상)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
 		status: 200,
@@ -131,7 +146,9 @@ export class WorkspacesController {
 	}
 
 	@Post(':id/users')
-	@ApiOperation({ summary: '워크스페이스에 사용자 추가' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스에 사용자 추가 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 201, description: '사용자가 성공적으로 추가되었습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
@@ -145,7 +162,9 @@ export class WorkspacesController {
 	}
 
 	@Delete(':id/users/:userId')
-	@ApiOperation({ summary: '워크스페이스에서 사용자 제거' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '워크스페이스에서 사용자 제거 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiParam({ name: 'userId', description: '제거할 사용자 ID' })
 	@ApiResponse({ status: 200, description: '사용자가 성공적으로 제거되었습니다.' })
@@ -160,7 +179,9 @@ export class WorkspacesController {
 	}
 
 	@Post(':id/invitation-codes')
-	@ApiOperation({ summary: '초대 코드 생성' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '초대 코드 생성 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
 		status: 201,
@@ -176,14 +197,16 @@ export class WorkspacesController {
 	}
 
 	@Get(':id/invitation-codes')
-	@ApiOperation({ summary: '초대 코드 목록 조회' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '초대 코드 목록 조회 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
 		status: 200,
 		description: '초대 코드 목록이 성공적으로 조회되었습니다.',
 		type: [WorkspaceInvitationCode],
 	})
-	@ApiResponse({ status: 403, description: '워크스페이스 관리 권한이 없습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async getInvitationCodes(
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
@@ -192,10 +215,12 @@ export class WorkspacesController {
 	}
 
 	@Put(':id/invitation-codes')
-	@ApiOperation({ summary: '초대 코드 갱신' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '초대 코드 갱신 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '초대 코드가 성공적으로 갱신되었습니다.' })
-	@ApiResponse({ status: 403, description: '워크스페이스 관리 권한이 없습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async regenerateInvitationCode(
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
@@ -204,10 +229,12 @@ export class WorkspacesController {
 	}
 
 	@Delete('invitation-codes/:codeId')
-	@ApiOperation({ summary: '초대 코드 삭제' })
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@ApiOperation({ summary: '초대 코드 삭제 (관리자 권한 필요)' })
 	@ApiParam({ name: 'codeId', description: '초대 코드 ID' })
 	@ApiResponse({ status: 200, description: '초대 코드가 성공적으로 삭제되었습니다.' })
-	@ApiResponse({ status: 403, description: '워크스페이스 관리 권한이 없습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	@ApiResponse({ status: 400, description: '유효하지 않은 초대 코드입니다.' })
 	async deleteInvitationCode(
 		@Param('codeId', ParseIntPipe) codeId: number,

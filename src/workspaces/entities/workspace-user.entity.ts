@@ -8,8 +8,13 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { Workspace } from './workspace.entity';
 import { User } from '../../users/entities/user.entity';
+import { Workspace } from './workspace.entity';
+
+export enum WorkspaceRole {
+	OWNER = 'OWNER',
+	MEMBER = 'MEMBER',
+}
 
 @Entity('workspace_user')
 export class WorkspaceUser {
@@ -25,9 +30,17 @@ export class WorkspaceUser {
 	@Column({ name: 'user_id', type: 'int' })
 	userId: number;
 
-	@ApiProperty({ description: 'Whether user is admin', example: false })
-	@Column({ name: 'is_admin', type: 'boolean', default: false })
-	isAdmin: boolean;
+	@ApiProperty({
+		description: 'User role in workspace',
+		example: WorkspaceRole.MEMBER,
+		enum: WorkspaceRole,
+	})
+	@Column({
+		type: 'enum',
+		enum: WorkspaceRole,
+		default: WorkspaceRole.MEMBER,
+	})
+	role: WorkspaceRole;
 
 	@ApiProperty({ description: 'Join date', example: '2023-01-01T00:00:00.000Z' })
 	@CreateDateColumn({ name: 'joined_at', type: 'datetime' })

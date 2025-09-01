@@ -1,11 +1,4 @@
-import {
-	CanActivate,
-	ExecutionContext,
-	forwardRef,
-	Inject,
-	Injectable,
-	UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
@@ -19,7 +12,13 @@ export class JwtAuthGuard implements CanActivate {
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
 		const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-		const accessToken = request.cookies.access_token;
+		const authHeader = request.headers.authorization;
+
+		if (!authHeader || !authHeader.startsWith('Bearer ')) {
+			throw new UnauthorizedException('로그인이 필요합니다.');
+		}
+
+		const accessToken = authHeader.substring(7); // 'Bearer ' 제거
 
 		if (!accessToken) {
 			throw new UnauthorizedException('로그인이 필요합니다.');

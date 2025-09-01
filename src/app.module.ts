@@ -7,7 +7,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { GroupsModule } from './groups/groups.module';
-import { GtestModule } from './gtest/gtest.module';
 import { UsersModule } from './users/users.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 
@@ -48,7 +47,6 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 		WorkspacesModule,
 		AuthModule,
 		GroupsModule,
-		GtestModule,
 		// SpacesModule,
 		// ReservationsModule,
 	],

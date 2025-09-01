@@ -1,12 +1,12 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { firstValueFrom } from 'rxjs';
-import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../../users/services/users.service';
+import { Response } from 'express';
+import { firstValueFrom } from 'rxjs';
 import { parseJwtExpiration } from '../../common/utils/time.util';
+import { UsersService } from '../../users/services/users.service';
 
 interface KakaoUser {
 	id: number;

@@ -7,15 +7,14 @@ import {
 	Redirect,
 	Req,
 	Res,
-	UseGuards,
 	UnauthorizedException,
+	UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { Response, Request } from 'express';
-
-import { AuthService } from '../services/auth.service';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { AuthService } from '../services/auth.service';
 
 @ApiTags('Auth')
 @Controller('auth')

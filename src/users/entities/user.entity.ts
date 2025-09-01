@@ -9,10 +9,10 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 // import { GroupUser } from '../../groups/entities/group-user.entity';
 // import { Reservation } from '../../reservations/entities/reservation.entity';
 import { InvitationHistory } from '../../workspaces/entities/invitation-history.entity';
+import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 
 @Entity('users')
 export class User {

@@ -155,14 +155,14 @@ export class AuthController {
 			},
 		},
 	})
-	@Redirect()
 	async socialLoginCallback(@Param('provider') provider: string, @Query('code') code: string) {
 		const tokens = await this.authService.socialLogin(provider, code);
 
-		// 프론트엔드로 토큰을 전달하기 위해 쿼리 파라미터로 리다이렉트
-		const clientRedirectUri = this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
-		const redirectUrl = `${clientRedirectUri}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-
-		return { url: redirectUrl };
+		// 바디로 반환 (리다이렉트 없음)
+		return {
+			accessToken: tokens.accessToken,
+			refreshToken: tokens.refreshToken,
+			message: '로그인 성공',
+		};
 	}
 }

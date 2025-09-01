@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UsersModule } from './users/users.module';
-import { WorkspacesModule } from './workspaces/workspaces.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
 // import { SpacesModule } from './spaces/spaces.module';
 // import { ReservationsModule } from './reservations/reservations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { GroupsModule } from './groups/groups.module';
+import { GtestModule } from './gtest/gtest.module';
+import { UsersModule } from './users/users.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
 	imports: [
@@ -36,7 +38,7 @@ import { AuthModule } from './auth/auth.module';
 					username: configService.get('DB_USERNAME'),
 					password: configService.get('DB_PASSWORD'),
 					database: configService.get('DB_NAME'),
-					entities: [__dirname + '/**/*.entity{.ts,.js}'],
+					entities: [`${__dirname}/**/*.entity{.ts,.js}`],
 					dropSchema: configService.get('DB_DROP_SCHEMA') === 'true',
 					synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
 				};
@@ -45,6 +47,8 @@ import { AuthModule } from './auth/auth.module';
 		UsersModule,
 		WorkspacesModule,
 		AuthModule,
+		GroupsModule,
+		GtestModule,
 		// SpacesModule,
 		// ReservationsModule,
 	],

@@ -1,6 +1,6 @@
 import { HttpModule } from '@nestjs/axios';
 import { forwardRef, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
@@ -15,16 +15,7 @@ import { AuthService } from './services/auth.service';
 		HttpModule,
 		forwardRef(() => UsersModule),
 		ConfigModule,
-		JwtModule.registerAsync({
-			imports: [ConfigModule],
-			useFactory: async (configService: ConfigService) => ({
-				secret: configService.getOrThrow<string>('JWT_ACCESS_TOKEN_SECRET'),
-				signOptions: {
-					expiresIn: configService.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
-				},
-			}),
-			inject: [ConfigService],
-		}),
+		JwtModule,
 		TypeOrmModule.forFeature([WorkspaceUser]),
 	],
 	controllers: [AuthController],

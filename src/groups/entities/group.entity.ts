@@ -3,14 +3,22 @@ import {
 	Column,
 	CreateDateColumn,
 	Entity,
+	Index,
 	JoinColumn,
 	ManyToOne,
+	OneToMany,
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
+import { GroupMember } from './group-member.entity';
+import { GroupRole } from './group-member.entity';
+import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 
 @Entity('groups')
+@Index(['workspaceId', 'isActive']) // 워크스페이스별 활성 그룹 조회 최적화
+@Index(['creatorId']) // 생성자별 그룹 조회 최적화
 export class Group {
 	@ApiProperty({ description: '그룹 ID' })
 	@PrimaryGeneratedColumn()
@@ -49,4 +57,56 @@ export class Group {
 	@ManyToOne(() => User, { eager: true })
 	@JoinColumn({ name: 'creator_id' })
 	creator: User;
+
+	@ApiProperty({ description: '워크스페이스 ID' })
+	@Column({ name: 'workspace_id' })
+	workspaceId: number;
+
+	@ApiProperty({ description: '워크스페이스', type: () => Workspace })
+	@ManyToOne(() => Workspace)
+	@JoinColumn({ name: 'workspace_id' })
+	workspace: Workspace;
+
+	@OneToMany(
+		() => GroupMember,
+		(groupMember) => groupMember.group,
+	)
+	members: GroupMember[];
+
+	// 현재 멤버 수 계산을 위한 가상 컬럼
+	@ApiProperty({ description: '현재 멤버 수' })
+	get currentMemberCount(): number {
+		return this.members?.length || 0;
+	}
+
+	// 멤버 추가 가능 여부 확인
+	@ApiProperty({ description: '멤버 추가 가능 여부' })
+	get canAddMember(): boolean {
+		return this.currentMemberCount < this.maxMembers;
+	}
+
+	// 남은 자리 수
+	@ApiProperty({ description: '남은 자리 수' })
+	get availableSlots(): number {
+		return Math.max(0, this.maxMembers - this.currentMemberCount);
+	}
+
+	// 멤버 여부 확인
+	isMember(userId: number): boolean {
+		return this.members?.some((member) => member.userId === userId) || false;
+	}
+
+	// 그룹 관리자 여부 확인 (생성자는 항상 관리자)
+	isAdmin(userId: number): boolean {
+		if (this.creatorId === userId) return true;
+		return (
+			this.members?.some((member) => member.userId === userId && member.role === GroupRole.ADMIN) ||
+			false
+		);
+	}
+
+	// 워크스페이스 멤버십 검증을 위한 메서드 추가
+	validateCreatorWorkspaceMembership(workspaceUsers: WorkspaceUser[]): boolean {
+		return workspaceUsers.some((wu) => wu.userId === this.creatorId);
+	}
 }

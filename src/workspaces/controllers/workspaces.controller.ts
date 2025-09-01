@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { WorkspaceRoles } from '../../auth/decorators/workspace-role.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from '../../auth/guards/workspace-role.guard';
+import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
@@ -41,9 +42,9 @@ export class WorkspacesController {
 	@ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
 	async create(
 		@Body() createWorkspaceDto: CreateWorkspaceDto,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest, // 👈 타입 명시
 	): Promise<Workspace> {
-		return this.workspacesService.create(createWorkspaceDto, req.user.id);
+		return this.workspacesService.create(createWorkspaceDto, req.user.sub); // 👈 req.user.sub 사용
 	}
 
 	@Get('my')

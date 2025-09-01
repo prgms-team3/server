@@ -1,89 +1,87 @@
 import {
-	Body,
 	Controller,
-	Delete,
 	Get,
-	Param,
-	ParseIntPipe,
-	Patch,
 	Post,
-	Req,
+	Body,
+	Patch,
+	Param,
+	Delete,
 	UseGuards,
+	Request,
+	Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
 import { Group } from '../entities/group.entity';
+import { GroupMember } from '../entities/group-member.entity';
 import { GroupsService } from '../services/groups.service';
 
 @ApiTags('Groups')
-@Controller('groups')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('groups')
 export class GroupsController {
 	constructor(private readonly groupsService: GroupsService) {}
 
 	@Post()
 	@ApiOperation({ summary: '그룹 생성' })
-	@ApiResponse({ status: 201, description: '그룹 생성 성공', type: Group })
-	@ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
-	async create(
-		@Body() createGroupDto: CreateGroupDto,
-		@Req() req: AuthenticatedRequest,
-	): Promise<Group> {
-		return await this.groupsService.create(createGroupDto, req.user.sub);
+	@ApiResponse({ status: 201, description: '그룹이 성공적으로 생성됨', type: Group })
+	create(@Body() createGroupDto: CreateGroupDto, @Request() req): Promise<Group> {
+		return this.groupsService.create(createGroupDto, req.user.id);
 	}
 
 	@Get()
 	@ApiOperation({ summary: '모든 그룹 조회' })
 	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
-	async findAll(): Promise<Group[]> {
-		return await this.groupsService.findAll();
+	findAll(): Promise<Group[]> {
+		return this.groupsService.findAll();
 	}
 
-	@Get('my')
-	@ApiOperation({ summary: '내가 생성한 그룹 조회' })
-	@ApiResponse({ status: 200, description: '내 그룹 목록', type: [Group] })
-	async findMyGroups(@Req() req: AuthenticatedRequest): Promise<Group[]> {
-		return await this.groupsService.findByCreator(req.user.sub);
+	@Get('workspace/:workspaceId')
+	@ApiOperation({ summary: '워크스페이스별 그룹 조회' })
+	@ApiResponse({ status: 200, description: '워크스페이스 그룹 목록', type: [Group] })
+	findByWorkspace(@Param('workspaceId') workspaceId: string): Promise<Group[]> {
+		return this.groupsService.findByWorkspace(+workspaceId);
 	}
 
 	@Get(':id')
-	@ApiOperation({ summary: '특정 그룹 조회' })
-	@ApiParam({ name: 'id', description: '그룹 ID' })
-	@ApiResponse({ status: 200, description: '그룹 정보', type: Group })
-	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
-	async findOne(@Param('id', ParseIntPipe) id: number): Promise<Group> {
-		return await this.groupsService.findOne(id);
+	@ApiOperation({ summary: '그룹 상세 조회' })
+	@ApiResponse({ status: 200, description: '그룹 상세 정보', type: Group })
+	findOne(@Param('id') id: string): Promise<Group> {
+		return this.groupsService.findOne(+id);
 	}
 
 	@Patch(':id')
-	@ApiOperation({ summary: '그룹 정보 수정' })
-	@ApiParam({ name: 'id', description: '그룹 ID' })
-	@ApiResponse({ status: 200, description: '수정된 그룹 정보', type: Group })
-	@ApiResponse({ status: 403, description: '권한 없음 (생성자만 수정 가능)' })
-	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
-	async update(
-		@Param('id', ParseIntPipe) id: number,
+	@ApiOperation({ summary: '그룹 수정' })
+	@ApiResponse({ status: 200, description: '그룹이 성공적으로 수정됨', type: Group })
+	update(
+		@Param('id') id: string,
 		@Body() updateGroupDto: UpdateGroupDto,
-		@Req() req: AuthenticatedRequest,
+		@Request() req,
 	): Promise<Group> {
-		return await this.groupsService.update(id, updateGroupDto, req.user.sub);
+		return this.groupsService.update(+id, updateGroupDto, req.user.id);
 	}
 
 	@Delete(':id')
 	@ApiOperation({ summary: '그룹 삭제' })
-	@ApiParam({ name: 'id', description: '그룹 ID' })
-	@ApiResponse({ status: 200, description: '그룹 삭제 성공' })
-	@ApiResponse({ status: 403, description: '권한 없음 (생성자만 삭제 가능)' })
-	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
-	async remove(
-		@Param('id', ParseIntPipe) id: number,
-		@Req() req: AuthenticatedRequest,
-	): Promise<{ message: string }> {
-		await this.groupsService.remove(id, req.user.sub);
-		return { message: '그룹이 삭제되었습니다' };
+	@ApiResponse({ status: 200, description: '그룹이 성공적으로 삭제됨' })
+	remove(@Param('id') id: string, @Request() req): Promise<void> {
+		return this.groupsService.remove(+id, req.user.id);
+	}
+
+	@Post(':id/join')
+	@ApiOperation({ summary: '그룹 가입' })
+	@ApiResponse({ status: 201, description: '그룹에 성공적으로 가입됨', type: GroupMember })
+	joinGroup(@Param('id') id: string, @Request() req): Promise<GroupMember> {
+		return this.groupsService.joinGroup(+id, req.user.id);
+	}
+
+	@Delete(':id/leave')
+	@ApiOperation({ summary: '그룹 탈퇴' })
+	@ApiResponse({ status: 200, description: '그룹에서 성공적으로 탈퇴됨' })
+	leaveGroup(@Param('id') id: string, @Request() req): Promise<void> {
+		return this.groupsService.leaveGroup(+id, req.user.id);
 	}
 }

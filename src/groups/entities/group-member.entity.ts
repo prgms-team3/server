@@ -18,9 +18,9 @@ export enum GroupRole {
 }
 
 @Entity('group_members')
-@Unique(['groupId', 'userId']) // 같은 그룹에 같은 사용자가 중복으로 들어가는 것 방지
-@Index(['groupId']) // 그룹별 멤버 조회 최적화
-@Index(['userId']) // 사용자별 그룹 조회 최적화
+@Unique(['groupId', 'userId'])
+@Index(['groupId'])
+@Index(['userId'])
 export class GroupMember {
 	@ApiProperty({ description: '그룹 멤버 ID' })
 	@PrimaryGeneratedColumn()
@@ -56,14 +56,14 @@ export class GroupMember {
 		() => Group,
 		(group) => group.members,
 		{
-			onDelete: 'CASCADE', // 그룹 삭제 시 멤버 자동 삭제
+			onDelete: 'CASCADE',
 		},
 	)
 	@JoinColumn({ name: 'group_id' })
 	group: Group;
 
 	@ApiProperty({ description: '사용자 정보', type: () => User })
-	@ManyToOne(() => User, { eager: true }) // 사용자 정보는 항상 로드
+	@ManyToOne(() => User, { eager: true })
 	@JoinColumn({ name: 'user_id' })
 	user: User;
 
@@ -76,7 +76,6 @@ export class GroupMember {
 		return this.role === GroupRole.MEMBER;
 	}
 
-	// 역할 변경 메서드
 	promoteToAdmin(): void {
 		this.role = GroupRole.ADMIN;
 	}

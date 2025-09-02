@@ -1,16 +1,18 @@
 import {
-	Controller,
-	Get,
-	Post,
 	Body,
-	Patch,
-	Param,
+	Controller,
 	Delete,
-	UseGuards,
+	Get,
+	Param,
+	ParseIntPipe,
+	Patch,
+	Post,
 	Request,
-	Query,
+	UseGuards,
+	UsePipes,
+	ValidationPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
@@ -21,6 +23,7 @@ import { GroupsService } from '../services/groups.service';
 @ApiTags('Groups')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@UsePipes(new ValidationPipe({ transform: true }))
 @Controller('groups')
 export class GroupsController {
 	constructor(private readonly groupsService: GroupsService) {}
@@ -28,6 +31,9 @@ export class GroupsController {
 	@Post()
 	@ApiOperation({ summary: '그룹 생성' })
 	@ApiResponse({ status: 201, description: '그룹이 성공적으로 생성됨', type: Group })
+	@ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
+	@ApiResponse({ status: 403, description: '워크스페이스 멤버가 아님' })
+	@ApiResponse({ status: 401, description: '인증 실패' })
 	create(@Body() createGroupDto: CreateGroupDto, @Request() req): Promise<Group> {
 		return this.groupsService.create(createGroupDto, req.user.id);
 	}
@@ -37,6 +43,14 @@ export class GroupsController {
 	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
 	findAll(): Promise<Group[]> {
 		return this.groupsService.findAll();
+	}
+
+	// 정적 라우트를 동적 라우트보다 먼저 선언
+	@Get('deleted')
+	@ApiOperation({ summary: '삭제된 그룹 목록 조회' })
+	@ApiResponse({ status: 200, description: '삭제된 그룹 목록', type: [Group] })
+	findDeleted(): Promise<Group[]> {
+		return this.groupsService.findDeleted();
 	}
 
 	@Get('workspace/:workspaceId')
@@ -49,19 +63,26 @@ export class GroupsController {
 	@Get(':id')
 	@ApiOperation({ summary: '그룹 상세 조회' })
 	@ApiResponse({ status: 200, description: '그룹 상세 정보', type: Group })
-	findOne(@Param('id') id: string): Promise<Group> {
-		return this.groupsService.findOne(+id);
+	findOne(@Param('id', ParseIntPipe) id: number): Promise<Group> {
+		return this.groupsService.findOne(id);
 	}
 
 	@Patch(':id')
 	@ApiOperation({ summary: '그룹 수정' })
 	@ApiResponse({ status: 200, description: '그룹이 성공적으로 수정됨', type: Group })
 	update(
-		@Param('id') id: string,
+		@Param('id', ParseIntPipe) id: number,
 		@Body() updateGroupDto: UpdateGroupDto,
 		@Request() req,
 	): Promise<Group> {
-		return this.groupsService.update(+id, updateGroupDto, req.user.id);
+		return this.groupsService.update(id, updateGroupDto, req.user.id);
+	}
+
+	@Patch(':id/restore')
+	@ApiOperation({ summary: '그룹 복원' })
+	@ApiResponse({ status: 200, description: '그룹이 성공적으로 복원됨', type: Group })
+	restore(@Param('id') id: string, @Request() req): Promise<Group> {
+		return this.groupsService.restore(+id, req.user.id);
 	}
 
 	@Delete(':id')
@@ -71,6 +92,7 @@ export class GroupsController {
 		return this.groupsService.remove(+id, req.user.id);
 	}
 
+	// 멤버 관련 엔드포인트들
 	@Post(':id/join')
 	@ApiOperation({ summary: '그룹 가입' })
 	@ApiResponse({ status: 201, description: '그룹에 성공적으로 가입됨', type: GroupMember })
@@ -83,5 +105,38 @@ export class GroupsController {
 	@ApiResponse({ status: 200, description: '그룹에서 성공적으로 탈퇴됨' })
 	leaveGroup(@Param('id') id: string, @Request() req): Promise<void> {
 		return this.groupsService.leaveGroup(+id, req.user.id);
+	}
+
+	@Patch(':id/members/:userId/promote')
+	@ApiOperation({ summary: '멤버를 관리자로 승격' })
+	@ApiResponse({ status: 200, description: '멤버가 관리자로 승격됨', type: GroupMember })
+	promoteToAdmin(
+		@Param('id') id: string,
+		@Param('userId') userId: string,
+		@Request() req,
+	): Promise<GroupMember> {
+		return this.groupsService.promoteToAdmin(+id, +userId, req.user.id);
+	}
+
+	@Patch(':id/members/:userId/demote')
+	@ApiOperation({ summary: '관리자를 멤버로 강등' })
+	@ApiResponse({ status: 200, description: '관리자가 멤버로 강등됨', type: GroupMember })
+	demoteToMember(
+		@Param('id') id: string,
+		@Param('userId') userId: string,
+		@Request() req,
+	): Promise<GroupMember> {
+		return this.groupsService.demoteToMember(+id, +userId, req.user.id);
+	}
+
+	@Delete(':id/members/:userId/kick')
+	@ApiOperation({ summary: '멤버 추방' })
+	@ApiResponse({ status: 200, description: '멤버가 추방됨' })
+	kickMember(
+		@Param('id') id: string,
+		@Param('userId') userId: string,
+		@Request() req,
+	): Promise<void> {
+		return this.groupsService.kickMember(+id, +userId, req.user.id);
 	}
 }

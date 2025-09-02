@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
 	Column,
 	CreateDateColumn,
+	DeleteDateColumn,
 	Entity,
 	Index,
 	JoinColumn,
@@ -12,12 +13,11 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
-import { GroupMember } from './group-member.entity';
-import { GroupRole } from './group-member.entity';
 import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { GroupMember, GroupRole } from './group-member.entity';
 
 @Entity('groups')
-@Index(['workspaceId', 'isActive']) // 워크스페이스별 활성 그룹 조회 최적화
+@Index(['workspaceId']) // 워크스페이스별 그룹 조회 최적화
 @Index(['creatorId']) // 생성자별 그룹 조회 최적화
 export class Group {
 	@ApiProperty({ description: '그룹 ID' })
@@ -40,9 +40,9 @@ export class Group {
 	@Column({ name: 'max_members', default: 10 })
 	maxMembers: number;
 
-	@ApiProperty({ description: '활성 상태' })
-	@Column({ name: 'is_active', default: true })
-	isActive: boolean;
+	@ApiProperty({ description: '워크스페이스 ID' })
+	@Column({ name: 'workspace_id' })
+	workspaceId: number;
 
 	@ApiProperty({ description: '생성일시' })
 	@CreateDateColumn({ name: 'created_at' })
@@ -52,15 +52,15 @@ export class Group {
 	@UpdateDateColumn({ name: 'updated_at' })
 	updatedAt: Date;
 
+	@ApiProperty({ description: '삭제일시', required: false })
+	@DeleteDateColumn({ name: 'deleted_at' })
+	deletedAt?: Date;
+
 	// Relations
 	@ApiProperty({ description: '그룹 생성자', type: () => User })
 	@ManyToOne(() => User, { eager: true })
 	@JoinColumn({ name: 'creator_id' })
 	creator: User;
-
-	@ApiProperty({ description: '워크스페이스 ID' })
-	@Column({ name: 'workspace_id' })
-	workspaceId: number;
 
 	@ApiProperty({ description: '워크스페이스', type: () => Workspace })
 	@ManyToOne(() => Workspace)
@@ -76,7 +76,9 @@ export class Group {
 	// 현재 멤버 수 계산을 위한 가상 컬럼
 	@ApiProperty({ description: '현재 멤버 수' })
 	get currentMemberCount(): number {
-		return this.members?.length || 0;
+		if (!this.members) return 0;
+		// GroupMember는 물리적 삭제를 사용하므로 단순히 배열 길이 반환
+		return this.members.length;
 	}
 
 	// 멤버 추가 가능 여부 확인

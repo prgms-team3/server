@@ -17,8 +17,9 @@ export class CreateGroupDto {
 	workspaceId: number;
 
 	@ApiProperty({ description: '최대 멤버 수', example: 10, minimum: 1, maximum: 50 })
+	@IsOptional()
 	@IsNumber()
 	@Min(1, { message: '최대 멤버 수는 최소 1명이어야 합니다' })
 	@Max(50, { message: '최대 멤버 수는 50명을 초과할 수 없습니다' })
-	maxMembers: number = 10;
+	maxMembers?: number = 10;
 }

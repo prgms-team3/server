@@ -7,11 +7,11 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { WorkspaceUser } from './workspace-user.entity';
-import { Group } from '../../groups/entities/group.entity';
-import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
 import { InvitationHistory } from './invitation-history.entity';
-import { Space } from '../../spaces/entities/space.entity';
+// import { Group } from '../../groups/entities/group.entity';
+import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
+import { WorkspaceUser } from './workspace-user.entity';
+// import { Space } from '../../spaces/entities/space.entity';
 
 @Entity('workspace')
 export class Workspace {
@@ -47,8 +47,8 @@ export class Workspace {
 	@OneToMany(() => WorkspaceUser, (workspaceUser) => workspaceUser.workspace)
 	workspaceUsers: WorkspaceUser[];
 
-	@OneToMany(() => Group, (group) => group.workspace)
-	groups: Group[];
+	// @OneToMany(() => Group, (group) => group.workspace)
+	// groups: Group[];
 
 	@OneToMany(() => WorkspaceInvitationCode, (invitationCode) => invitationCode.workspace)
 	invitationCodes: WorkspaceInvitationCode[];
@@ -56,6 +56,6 @@ export class Workspace {
 	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.workspace)
 	invitationHistories: InvitationHistory[];
 
-	@OneToMany(() => Space, (space) => space.workspace)
-	spaces: Space[];
+	// @OneToMany(() => Space, (space) => space.workspace)
+	// spaces: Space[];
 }

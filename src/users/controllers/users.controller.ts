@@ -1,20 +1,24 @@
 import {
-	Controller,
-	Get,
-	Post,
 	Body,
-	Patch,
-	Param,
-	Delete,
-	ParseIntPipe,
-	UseInterceptors,
 	ClassSerializerInterceptor,
+	Controller,
+	Delete,
+	Get,
+	Param,
+	ParseIntPipe,
+	Patch,
+	Post,
+	Req,
+	UseGuards,
+	UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { UsersService } from '../services/users.service';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../entities/user.entity';
+import { UsersService } from '../services/users.service';
 
 @ApiTags('Users (데모)')
 @Controller('users')
@@ -35,6 +39,31 @@ export class UsersController {
 	@ApiResponse({ status: 200, description: '사용자 목록', type: [User] })
 	findAll(): Promise<User[]> {
 		return this.usersService.findAll();
+	}
+
+	@Get('me')
+	@ApiOperation({ summary: '내 정보 조회 (마이페이지)' })
+	@ApiResponse({ status: 200, description: '현재 로그인한 사용자 정보', type: User })
+	@ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	async getMyProfile(@Req() req: AuthenticatedRequest): Promise<User> {
+		// JWT에서 추출한 사용자 ID로 사용자 정보 조회
+		return this.usersService.findOne(req.user.sub);
+	}
+
+	@Patch('me')
+	@ApiOperation({ summary: '내 정보 수정 (마이페이지)' })
+	@ApiResponse({ status: 200, description: '수정된 사용자 정보', type: User })
+	@ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	async updateMyProfile(
+		@Req() req: AuthenticatedRequest,
+		@Body() updateUserDto: UpdateUserDto,
+	): Promise<User> {
+		// JWT에서 추출한 사용자 ID로 자신의 정보만 수정 가능
+		return this.usersService.update(req.user.sub, updateUserDto);
 	}
 
 	@Get(':id')

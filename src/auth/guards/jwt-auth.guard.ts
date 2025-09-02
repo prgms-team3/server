@@ -1,7 +1,7 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
+import { AuthenticatedRequest } from '../../types/authenticated-request';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -11,8 +11,14 @@ export class JwtAuthGuard implements CanActivate {
 	) {}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
-		const request = context.switchToHttp().getRequest<Request>();
-		const accessToken = request.cookies['access_token'];
+		const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+		const authHeader = request.headers.authorization;
+
+		if (!authHeader || !authHeader.startsWith('Bearer ')) {
+			throw new UnauthorizedException('로그인이 필요합니다.');
+		}
+
+		const accessToken = authHeader.substring(7); // 'Bearer ' 제거
 
 		if (!accessToken) {
 			throw new UnauthorizedException('로그인이 필요합니다.');
@@ -24,7 +30,7 @@ export class JwtAuthGuard implements CanActivate {
 			});
 
 			// req.user에 사용자 정보 저장
-			request['user'] = payload;
+			request.user = payload;
 		} catch {
 			throw new UnauthorizedException('유효하지 않은 토큰입니다.');
 		}

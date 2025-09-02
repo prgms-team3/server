@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 import {
 	Column,
@@ -8,10 +9,10 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 // import { GroupUser } from '../../groups/entities/group-user.entity';
 // import { Reservation } from '../../reservations/entities/reservation.entity';
 import { InvitationHistory } from '../../workspaces/entities/invitation-history.entity';
+import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 
 @Entity('users')
 export class User {
@@ -51,7 +52,7 @@ export class User {
 	@Column({ name: 'is_active', type: 'boolean', default: true })
 	isActive: boolean;
 
-	@ApiProperty({ description: 'Hashed refresh token', required: false })
+	@Exclude() // 응답에서 제외
 	@Column({ name: 'current_hashed_refresh_token', type: 'text', nullable: true })
 	currentHashedRefreshToken?: string;
 

@@ -1,10 +1,10 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { firstValueFrom } from 'rxjs';
-import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
+import { firstValueFrom } from 'rxjs';
+import { parseJwtExpiration } from '../../common/utils/time.util';
 import { UsersService } from '../../users/services/users.service';
 
 interface KakaoUser {
@@ -15,6 +15,12 @@ interface KakaoUser {
 			nickname?: string;
 		};
 	};
+}
+
+interface TokenResponse {
+	accessToken: string;
+	refreshToken: string;
+	refreshTokenExpiry: number; // 쿠키 만료 시간을 위한 추가
 }
 
 @Injectable()
@@ -38,7 +44,7 @@ export class AuthService {
 		throw new BadRequestException(`지원하지 않는 프로바이더입니다: ${provider}`);
 	}
 
-	async socialLogin(provider: string, code: string, res: Response): Promise<string> {
+	async socialLogin(provider: string, code: string): Promise<TokenResponse> {
 		if (provider === 'kakao') {
 			const accessToken = await this.getKakaoAccessToken(code);
 			const kakaoUser: KakaoUser = await this.getKakaoUserInfo(accessToken);
@@ -66,34 +72,19 @@ export class AuthService {
 				});
 			}
 
+			// 토큰 발급
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
 			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
-
 			await this.saveRefreshToken(newRefreshToken, user.id);
 
-			res.cookie('access_token', newAccessToken, {
-				httpOnly: true,
-				secure: this.configService.get('NODE_ENV') === 'production',
-				sameSite: 'lax',
-				maxAge:
-					parseInt(
-						this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
-						10,
-					) * 1000,
-			});
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
 
-			res.cookie('refresh_token', newRefreshToken, {
-				httpOnly: true,
-				secure: this.configService.get('NODE_ENV') === 'production',
-				sameSite: 'lax',
-				maxAge:
-					parseInt(
-						this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
-						10,
-					) * 1000,
-			});
-
-			return this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
+			return {
+				accessToken: newAccessToken,
+				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
+			};
 		}
 		throw new BadRequestException(`지원하지 않는 프로바이더입니다: ${provider}`);
 	}
@@ -120,7 +111,7 @@ export class AuthService {
 				}),
 			);
 			return response.data.access_token;
-		} catch (error) {
+		} catch {
 			throw new UnauthorizedException('카카오 토큰 발급에 실패했습니다.');
 		}
 	}
@@ -135,11 +126,12 @@ export class AuthService {
 		try {
 			const response = await firstValueFrom(this.httpService.get(url, { headers }));
 			return response.data;
-		} catch (error) {
+		} catch {
 			throw new UnauthorizedException('카카오 사용자 정보 조회에 실패했습니다.');
 		}
 	}
 
+	//jwt
 	async getAccessToken(userId: number, email: string): Promise<string> {
 		const payload = { sub: userId, email };
 		const accessToken = await this.jwtService.signAsync(payload, {
@@ -158,12 +150,19 @@ export class AuthService {
 		return refreshToken;
 	}
 
-	async saveRefreshToken(refreshToken: string, userId: number) {
-		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-		await this.usersService.setCurrentRefreshToken(userId, currentHashedRefreshToken);
+	private getRefreshTokenExpiryTime(): number {
+		const expirationTime = this.configService.getOrThrow<string>(
+			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+		);
+		return parseJwtExpiration(expirationTime);
 	}
 
-	async refreshAccessToken(refreshToken: string) {
+	async saveRefreshToken(refreshToken: string, userId: number) {
+		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+		await this.usersService.saveHashedRefreshToken(userId, currentHashedRefreshToken);
+	}
+
+	async refreshTokenPair(refreshToken: string): Promise<TokenResponse> {
 		try {
 			const payload = await this.jwtService.verifyAsync(refreshToken, {
 				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
@@ -177,16 +176,31 @@ export class AuthService {
 				throw new UnauthorizedException('Invalid refresh token');
 			}
 
+			// 새로운 토큰들 발급
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
-			return { accessToken: newAccessToken };
-		} catch (error) {
+			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
+			// 새로운 refresh token을 데이터베이스에 저장
+			await this.saveRefreshToken(newRefreshToken, user.id);
+
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
+
+			return {
+				accessToken: newAccessToken,
+				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
+			};
+		} catch {
 			throw new UnauthorizedException('Invalid refresh token');
 		}
 	}
 
-	async logout(res: Response, userId: number): Promise<void> {
-		await this.usersService.removeRefreshToken(userId);
-		res.clearCookie('access_token');
-		res.clearCookie('refresh_token');
+	async signout(userId: number): Promise<void> {
+		try {
+			await this.usersService.removeRefreshToken(userId);
+			console.log(`User ${userId} signed out successfully`);
+		} catch (error) {
+			console.error(`Failed to sign out user ${userId}:`, error);
+		}
 	}
 }

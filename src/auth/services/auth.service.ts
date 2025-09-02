@@ -1,12 +1,11 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { firstValueFrom } from 'rxjs';
-import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../../users/services/users.service';
+import { firstValueFrom } from 'rxjs';
 import { parseJwtExpiration } from '../../common/utils/time.util';
+import { UsersService } from '../../users/services/users.service';
 
 interface KakaoUser {
 	id: number;
@@ -16,6 +15,12 @@ interface KakaoUser {
 			nickname?: string;
 		};
 	};
+}
+
+interface TokenResponse {
+	accessToken: string;
+	refreshToken: string;
+	refreshTokenExpiry: number; // 쿠키 만료 시간을 위한 추가
 }
 
 @Injectable()
@@ -39,7 +44,7 @@ export class AuthService {
 		throw new BadRequestException(`지원하지 않는 프로바이더입니다: ${provider}`);
 	}
 
-	async socialLogin(provider: string, code: string, res: Response): Promise<string> {
+	async socialLogin(provider: string, code: string): Promise<TokenResponse> {
 		if (provider === 'kakao') {
 			const accessToken = await this.getKakaoAccessToken(code);
 			const kakaoUser: KakaoUser = await this.getKakaoUserInfo(accessToken);
@@ -67,13 +72,19 @@ export class AuthService {
 				});
 			}
 
-			// 토큰 발급 및 쿠키 설정
+			// 토큰 발급
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
 			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
 			await this.saveRefreshToken(newRefreshToken, user.id);
-			this.setTokenCookies(res, newAccessToken, newRefreshToken);
 
-			return this.configService.getOrThrow<string>('CLIENT_REDIRECT_URI');
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
+
+			return {
+				accessToken: newAccessToken,
+				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
+			};
 		}
 		throw new BadRequestException(`지원하지 않는 프로바이더입니다: ${provider}`);
 	}
@@ -139,35 +150,19 @@ export class AuthService {
 		return refreshToken;
 	}
 
+	private getRefreshTokenExpiryTime(): number {
+		const expirationTime = this.configService.getOrThrow<string>(
+			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+		);
+		return parseJwtExpiration(expirationTime);
+	}
+
 	async saveRefreshToken(refreshToken: string, userId: number) {
 		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 		await this.usersService.saveHashedRefreshToken(userId, currentHashedRefreshToken);
 	}
 
-	/**
-	 * JWT 토큰들을 쿠키에 설정하는 헬퍼 함수
-	 */
-	setTokenCookies(res: Response, accessToken: string, refreshToken: string): void {
-		res.cookie('access_token', accessToken, {
-			httpOnly: true,
-			secure: this.configService.get('NODE_ENV') === 'production',
-			sameSite: 'lax',
-			maxAge: parseJwtExpiration(
-				this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
-			),
-		});
-
-		res.cookie('refresh_token', refreshToken, {
-			httpOnly: true,
-			secure: this.configService.get('NODE_ENV') === 'production',
-			sameSite: 'lax',
-			maxAge: parseJwtExpiration(
-				this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
-			),
-		});
-	}
-
-	async refreshTokenPair(refreshToken: string) {
+	async refreshTokenPair(refreshToken: string): Promise<TokenResponse> {
 		try {
 			const payload = await this.jwtService.verifyAsync(refreshToken, {
 				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
@@ -187,35 +182,25 @@ export class AuthService {
 			// 새로운 refresh token을 데이터베이스에 저장
 			await this.saveRefreshToken(newRefreshToken, user.id);
 
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
+
 			return {
 				accessToken: newAccessToken,
 				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
 			};
 		} catch {
 			throw new UnauthorizedException('Invalid refresh token');
 		}
 	}
 
-	async signout(res: Response, userId: number): Promise<void> {
+	async signout(userId: number): Promise<void> {
 		try {
 			await this.usersService.removeRefreshToken(userId);
-
-			// 쿠키 생성 시와 동일한 옵션으로 삭제
-			const cookieOptions = {
-				httpOnly: true,
-				secure: this.configService.get('NODE_ENV') === 'production',
-				sameSite: 'lax' as const,
-			};
-
-			res.clearCookie('access_token', cookieOptions);
-			res.clearCookie('refresh_token', cookieOptions);
-
 			console.log(`User ${userId} signed out successfully`);
 		} catch (error) {
 			console.error(`Failed to sign out user ${userId}:`, error);
-			// 에러가 발생해도 쿠키는 삭제 시도
-			res.clearCookie('access_token');
-			res.clearCookie('refresh_token');
 		}
 	}
 }

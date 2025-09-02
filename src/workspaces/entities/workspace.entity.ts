@@ -7,10 +7,10 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { WorkspaceUser } from './workspace-user.entity';
+import { InvitationHistory } from './invitation-history.entity';
 // import { Group } from '../../groups/entities/group.entity';
 import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
-import { InvitationHistory } from './invitation-history.entity';
+import { WorkspaceUser } from './workspace-user.entity';
 // import { Space } from '../../spaces/entities/space.entity';
 
 @Entity('workspace')

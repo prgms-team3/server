@@ -8,6 +8,7 @@ import { SpacesModule } from './spaces/spaces.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
 	imports: [
@@ -43,6 +44,7 @@ import { AppService } from './app.service';
 		}),
 		TestDbModule,
 		UsersModule,
+		AuthModule,
 		WorkspacesModule,
 		SpacesModule,
 		ReservationsModule,

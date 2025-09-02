@@ -50,6 +50,11 @@ export const ErrorCode = {
 		message: '유효하지 않은 초대 코드입니다.',
 		status: HttpStatus.BAD_REQUEST,
 	},
+	ALEADY_EXIST_INVITATION_CODE: {
+		code: 'ALEADY_EXIST_INVITATION_CODE',
+		message: '이미 존재하는 초대 코드입니다.',
+		status: HttpStatus.CONFLICT,
+	},
 
 	// Space related errors
 	SPACE_NOT_FOUND: {

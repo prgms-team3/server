@@ -138,7 +138,7 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스 삭제
+	 * 워크스페이스 삭제 (soft delete)
 	 */
 	async remove(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
@@ -152,7 +152,8 @@ export class WorkspacesService {
 			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
 		}
 
-		await this.workspaceRepository.remove(workspace);
+		workspace.deleted = true;
+		await this.workspaceRepository.save(workspace);
 	}
 
 	/**
@@ -224,6 +225,16 @@ export class WorkspacesService {
 	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
 		await this.checkUserIsOwner(userId, workspaceId);
+
+		// 기존 활성 초대 코드 찾기
+		const existingCodes = await this.invitationCodeRepository.find({
+			where: { workspaceId, isActive: true },
+		});
+
+		// 기존 활성 초대 코드가 있으면 에러 반환
+		if (existingCodes.length > 0) {
+			throw new AppException(ErrorCode.ALEADY_EXIST_INVITATION_CODE);
+		}
 
 		const code = this.generateInvitationCode();
 		const invitationCode = this.invitationCodeRepository.create({

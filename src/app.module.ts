@@ -44,6 +44,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 			},
 		}),
 		UsersModule,
+		AuthModule,
 		WorkspacesModule,
 		AuthModule,
 		GroupsModule,

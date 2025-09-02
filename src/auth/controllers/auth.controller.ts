@@ -17,6 +17,7 @@ import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -122,6 +123,7 @@ export class AuthController {
 
 		// 권장 액션 추가
 		let recommendedAction = '';
+
 		if (!bearerToken) {
 			recommendedAction = '로그인이 필요합니다. GET /auth/kakao 로 로그인하세요';
 		} else if (bearerToken && !decodedAccessToken?.is_expired) {

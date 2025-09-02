@@ -21,6 +21,9 @@ async function bootstrap() {
 			}),
 		);
 
+		// main.ts 또는 app.module.ts
+		app.use(testAuthMiddleware);
+
 		// Swagger 설정
 		const config = new DocumentBuilder()
 			.setTitle('Place-It API')
@@ -50,3 +53,10 @@ async function bootstrap() {
 	}
 }
 bootstrap().catch((err) => console.error(err));
+
+// 테스트용 auth 미들웨어
+function testAuthMiddleware(req, res, next) {
+	// 테스트용 사용자 ID 설정
+	req.user = { id: 1 }; // DB에 넣어둔 테스트 사용자 ID
+	next();
+  }

@@ -67,10 +67,7 @@ export class Group {
 	@JoinColumn({ name: 'workspace_id' })
 	workspace: Workspace;
 
-	@OneToMany(
-		() => GroupMember,
-		(groupMember) => groupMember.group,
-	)
+	@OneToMany(() => GroupMember, (groupMember) => groupMember.group)
 	members: GroupMember[];
 
 	// 현재 멤버 수 계산을 위한 가상 컬럼
@@ -102,8 +99,9 @@ export class Group {
 	isAdmin(userId: number): boolean {
 		if (this.creatorId === userId) return true;
 		return (
-			this.members?.some((member) => member.userId === userId && member.role === GroupRole.ADMIN) ||
-			false
+			this.members?.some(
+				(member) => member.userId === userId && member.role === GroupRole.ADMIN,
+			) || false
 		);
 	}
 

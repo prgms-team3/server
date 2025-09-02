@@ -7,13 +7,13 @@ import {
 	Query,
 	Redirect,
 	Req,
+	Res,
 	UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
-import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 
@@ -29,10 +29,14 @@ export class AuthController {
 	@ApiOperation({ summary: '로그아웃' })
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
-	async signout(@Req() req: AuthenticatedRequest) {
+	async signout(@Req() req: AuthenticatedRequest, @Res() res: Response) {
 		// req.user는 JwtAuthGuard에 의해 주입됩니다.
 		await this.authService.signout(req.user.sub);
-		return { message: '로그아웃 되었습니다.' };
+
+		// 리프레시 토큰 쿠키 삭제
+		res.clearCookie('refreshToken');
+
+		return res.json({ message: '로그아웃 되었습니다.' });
 	}
 
 	@Get('me')
@@ -40,9 +44,11 @@ export class AuthController {
 	async getTokensDebug(@Req() req: Request) {
 		const authHeader = req.headers.authorization;
 		const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+		const refreshTokenFromCookie = req.cookies?.refreshToken || null;
 
 		// 토큰이 있으면 디코딩 시도
 		let decodedAccessToken: any = null;
+		let decodedRefreshToken: any = null;
 		let accessTokenValid = false;
 
 		if (bearerToken) {
@@ -81,14 +87,56 @@ export class AuthController {
 			}
 		}
 
+		// 리프레시 토큰 디코딩
+		if (refreshTokenFromCookie) {
+			try {
+				const base64Payload = refreshTokenFromCookie.split('.')[1];
+				if (base64Payload) {
+					decodedRefreshToken = JSON.parse(
+						Buffer.from(base64Payload, 'base64').toString(),
+					);
+					const now = Math.floor(Date.now() / 1000);
+					decodedRefreshToken.is_expired = decodedRefreshToken.exp < now;
+
+					decodedRefreshToken.issued_at_readable = new Date(
+						decodedRefreshToken.iat * 1000,
+					).toLocaleString('ko-KR');
+					decodedRefreshToken.expires_at_readable = new Date(
+						decodedRefreshToken.exp * 1000,
+					).toLocaleString('ko-KR');
+
+					const timeLeft = decodedRefreshToken.exp - now;
+					if (timeLeft > 0) {
+						const days = Math.floor(timeLeft / 86400);
+						const hours = Math.floor((timeLeft % 86400) / 3600);
+						const minutes = Math.floor((timeLeft % 3600) / 60);
+						decodedRefreshToken.time_remaining = `${days}일 ${hours}시간 ${minutes}분`;
+					} else {
+						decodedRefreshToken.time_remaining = '만료됨';
+					}
+				}
+			} catch {
+				decodedRefreshToken = { error: 'Invalid token format' };
+			}
+		}
+
 		// 권장 액션 추가
 		let recommendedAction = '';
 		if (!bearerToken) {
 			recommendedAction = '로그인이 필요합니다. GET /auth/kakao 로 로그인하세요';
 		} else if (bearerToken && !decodedAccessToken?.is_expired) {
 			recommendedAction = '정상적으로 인증된 상태입니다';
-		} else if (decodedAccessToken?.is_expired) {
+		} else if (
+			decodedAccessToken?.is_expired &&
+			refreshTokenFromCookie &&
+			!decodedRefreshToken?.is_expired
+		) {
 			recommendedAction = 'access_token이 만료되었습니다. POST /auth/refresh 를 호출하세요';
+		} else if (
+			decodedAccessToken?.is_expired &&
+			(!refreshTokenFromCookie || decodedRefreshToken?.is_expired)
+		) {
+			recommendedAction = '모든 토큰이 만료되었습니다. 다시 로그인하세요';
 		}
 
 		return {
@@ -96,38 +144,67 @@ export class AuthController {
 			raw_tokens: {
 				authorization_header: authHeader || null,
 				bearer_token: bearerToken || null,
+				refresh_token_cookie: refreshTokenFromCookie || null,
 			},
 			decoded_tokens: {
 				access_token: decodedAccessToken,
+				refresh_token: decodedRefreshToken,
 			},
 			token_status: {
 				has_access_token: !!bearerToken,
 				access_token_valid: accessTokenValid,
+				has_refresh_token: !!refreshTokenFromCookie,
 			},
 			recommended_action: recommendedAction,
 		};
 	}
 
 	@Post('refresh')
-	@ApiOperation({ summary: '액세스 토큰 갱신' })
+	@ApiOperation({
+		summary: '액세스 토큰 갱신 (리프레시 토큰은 쿠키에서 자동으로 읽어옴)',
+	})
 	@ApiResponse({
 		status: 200,
 		description: '토큰 갱신 성공',
 		schema: {
 			properties: {
 				accessToken: { type: 'string' },
-				refreshToken: { type: 'string' },
+				message: { type: 'string' },
 			},
 		},
 	})
 	@ApiResponse({ status: 401, description: '유효하지 않은 refresh token' })
-	async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-		const result = await this.authService.refreshTokenPair(refreshTokenDto.refreshToken);
+	async refreshToken(@Req() req: Request, @Res() res: Response) {
+		const refreshToken = req.cookies?.refreshToken;
 
-		return {
-			accessToken: result.accessToken,
-			refreshToken: result.refreshToken,
-		};
+		if (!refreshToken) {
+			return res.status(401).json({
+				message: '리프레시 토큰이 없습니다. 다시 로그인해주세요.',
+			});
+		}
+
+		try {
+			const result = await this.authService.refreshTokenPair(refreshToken);
+
+			// 새로운 리프레시 토큰을 쿠키에 설정
+			const isProduction = this.configService.get('NODE_ENV') === 'production';
+			res.cookie('refreshToken', result.refreshToken, {
+				httpOnly: true,
+				secure: isProduction, // HTTPS에서만 전송 (프로덕션)
+				sameSite: isProduction ? 'none' : 'lax', // CORS 환경에서는 'none', 로컬에서는 'lax'
+				maxAge: result.refreshTokenExpiry, // 밀리초 단위
+			});
+
+			return res.json({
+				accessToken: result.accessToken,
+				message: '토큰이 성공적으로 갱신되었습니다.',
+			});
+		} catch (error) {
+			res.clearCookie('refreshToken');
+			return res.status(401).json({
+				message: '유효하지 않은 리프레시 토큰입니다. 다시 로그인해주세요.',
+			});
+		}
 	}
 
 	@Get(':provider')
@@ -146,23 +223,42 @@ export class AuthController {
 	@Get(':provider/callback')
 	@ApiOperation({ summary: '소셜 로그인 콜백' })
 	@ApiResponse({
-		status: 302,
-		description: '로그인 성공 후 클라이언트로 리다이렉트',
+		status: 200,
+		description: '로그인 성공',
 		schema: {
 			properties: {
 				accessToken: { type: 'string' },
-				refreshToken: { type: 'string' },
+				message: { type: 'string' },
 			},
 		},
 	})
-	async socialLoginCallback(@Param('provider') provider: string, @Query('code') code: string) {
-		const tokens = await this.authService.socialLogin(provider, code);
+	async socialLoginCallback(
+		@Param('provider') provider: string,
+		@Query('code') code: string,
+		@Res() res: Response,
+	) {
+		try {
+			const tokens = await this.authService.socialLogin(provider, code);
 
-		// 바디로 반환 (리다이렉트 없음)
-		return {
-			accessToken: tokens.accessToken,
-			refreshToken: tokens.refreshToken,
-			message: '로그인 성공',
-		};
+			// 리프레시 토큰을 HttpOnly 쿠키에 설정
+			const isProduction = this.configService.get('NODE_ENV') === 'production';
+			res.cookie('refreshToken', tokens.refreshToken, {
+				httpOnly: true,
+				secure: isProduction, // HTTPS에서만 전송 (프로덕션)
+				sameSite: isProduction ? 'none' : 'lax', // CORS 환경에서는 'none', 로컬에서는 'lax'
+				maxAge: tokens.refreshTokenExpiry, // 밀리초 단위
+			});
+
+			// 액세스 토큰만 응답 본문에 포함
+			return res.json({
+				accessToken: tokens.accessToken,
+				message: '로그인 성공',
+			});
+		} catch (error) {
+			return res.status(400).json({
+				message: '로그인에 실패했습니다.',
+				error: error.message,
+			});
+		}
 	}
 }

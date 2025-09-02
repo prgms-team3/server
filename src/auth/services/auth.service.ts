@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { firstValueFrom } from 'rxjs';
+import { parseJwtExpiration } from '../../common/utils/time.util';
 import { UsersService } from '../../users/services/users.service';
 
 interface KakaoUser {
@@ -19,6 +20,7 @@ interface KakaoUser {
 interface TokenResponse {
 	accessToken: string;
 	refreshToken: string;
+	refreshTokenExpiry: number; // 쿠키 만료 시간을 위한 추가
 }
 
 @Injectable()
@@ -75,9 +77,13 @@ export class AuthService {
 			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
 			await this.saveRefreshToken(newRefreshToken, user.id);
 
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
+
 			return {
 				accessToken: newAccessToken,
 				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
 			};
 		}
 		throw new BadRequestException(`지원하지 않는 프로바이더입니다: ${provider}`);
@@ -144,6 +150,13 @@ export class AuthService {
 		return refreshToken;
 	}
 
+	private getRefreshTokenExpiryTime(): number {
+		const expirationTime = this.configService.getOrThrow<string>(
+			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+		);
+		return parseJwtExpiration(expirationTime);
+	}
+
 	async saveRefreshToken(refreshToken: string, userId: number) {
 		const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 		await this.usersService.saveHashedRefreshToken(userId, currentHashedRefreshToken);
@@ -169,9 +182,13 @@ export class AuthService {
 			// 새로운 refresh token을 데이터베이스에 저장
 			await this.saveRefreshToken(newRefreshToken, user.id);
 
+			// 리프레시 토큰 만료 시간 계산
+			const refreshTokenExpiry = this.getRefreshTokenExpiryTime();
+
 			return {
 				accessToken: newAccessToken,
 				refreshToken: newRefreshToken,
+				refreshTokenExpiry,
 			};
 		} catch {
 			throw new UnauthorizedException('Invalid refresh token');

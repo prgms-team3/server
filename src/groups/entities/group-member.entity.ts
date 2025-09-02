@@ -52,13 +52,9 @@ export class GroupMember {
 
 	// Relations
 	@ApiProperty({ description: '그룹 정보', type: () => Group })
-	@ManyToOne(
-		() => Group,
-		(group) => group.members,
-		{
-			onDelete: 'CASCADE',
-		},
-	)
+	@ManyToOne(() => Group, (group) => group.members, {
+		onDelete: 'CASCADE',
+	})
 	@JoinColumn({ name: 'group_id' })
 	group: Group;
 

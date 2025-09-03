@@ -68,9 +68,9 @@ export class Space {
 	deleted: boolean;
 
 	/* Relations */
-	// @ManyToOne(() => Workspace, (workspace) => workspace.spaces)
-	// @JoinColumn({ name: 'workspace_id' })
-	// workspace: Workspace;
+	@ManyToOne(() => Workspace, (workspace) => workspace.spaces)
+	@JoinColumn({ name: 'workspace_id' })
+	workspace: Workspace;
 
 	@OneToMany(() => SpaceImage, (spaceImage) => spaceImage.space)
 	images: SpaceImage[];

@@ -12,7 +12,6 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from './workspace.entity';
 
 export enum WorkspaceRole {
-	OWNER = 'OWNER',
 	ADMIN = 'ADMIN',
 	MEMBER = 'MEMBER',
 }

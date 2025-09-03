@@ -36,7 +36,6 @@ export class GroupsService {
 
 		const group = this.groupRepository.create({
 			...createGroupDto,
-			creatorId,
 		});
 
 		const savedGroup = await this.groupRepository.save(group);

@@ -34,11 +34,11 @@ export class WorkspacesService {
 		const workspace = this.workspaceRepository.create(createWorkspaceDto);
 		const savedWorkspace = await this.workspaceRepository.save(workspace);
 
-		// 생성자를 OWNER로 추가
+		// 생성자를 ADMIN로 추가
 		const workspaceUser = this.workspaceUserRepository.create({
 			workspaceId: savedWorkspace.id,
 			userId,
-			role: WorkspaceRole.OWNER,
+			role: WorkspaceRole.ADMIN,
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
 
@@ -85,7 +85,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<Workspace> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, id);
+		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
@@ -104,7 +104,7 @@ export class WorkspacesService {
 	 */
 	async deActivate(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, id);
+		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
@@ -123,7 +123,7 @@ export class WorkspacesService {
 	 */
 	async activate(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, id);
+		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: false },
@@ -142,7 +142,7 @@ export class WorkspacesService {
 	 */
 	async remove(id: number, userId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, id);
+		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id },
@@ -165,7 +165,7 @@ export class WorkspacesService {
 		adminUserId: number,
 	): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(adminUserId, workspaceId);
+		await this.checkUserIsAdmin(adminUserId, workspaceId);
 
 		// 이미 워크스페이스에 속해있는지 확인
 		const existingUser = await this.workspaceUserRepository.findOne({
@@ -190,7 +190,7 @@ export class WorkspacesService {
 	 */
 	async removeUser(workspaceId: number, userId: number, adminUserId: number): Promise<void> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(adminUserId, workspaceId);
+		await this.checkUserIsAdmin(adminUserId, workspaceId);
 
 		const workspaceUser = await this.workspaceUserRepository.findOne({
 			where: { workspaceId, userId },
@@ -224,7 +224,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, workspaceId);
+		await this.checkUserIsAdmin(userId, workspaceId);
 
 		// 기존 활성 초대 코드 찾기
 		const existingCodes = await this.invitationCodeRepository.find({
@@ -253,7 +253,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode[]> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, workspaceId);
+		await this.checkUserIsAdmin(userId, workspaceId);
 
 		return this.invitationCodeRepository.find({
 			where: { workspaceId, isActive: true },
@@ -269,7 +269,7 @@ export class WorkspacesService {
 		userId: number,
 	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, workspaceId);
+		await this.checkUserIsAdmin(userId, workspaceId);
 
 		// 기존 활성 초대 코드 찾기
 		const existingCodes = await this.invitationCodeRepository.find({
@@ -306,7 +306,7 @@ export class WorkspacesService {
 		}
 
 		// 관리자 권한 확인
-		await this.checkUserIsOwner(userId, invitationCode.workspaceId);
+		await this.checkUserIsAdmin(userId, invitationCode.workspaceId);
 
 		invitationCode.isActive = false;
 		await this.invitationCodeRepository.save(invitationCode);
@@ -386,17 +386,17 @@ export class WorkspacesService {
 
 		const roleHierarchy = {
 			[WorkspaceRole.MEMBER]: 0,
-			[WorkspaceRole.OWNER]: 1,
+			[WorkspaceRole.ADMIN]: 1,
 		};
 
 		return roleHierarchy[userRole] >= roleHierarchy[minimumRole];
 	}
 
 	/**
-	 * 사용자가 OWNER 권한이 있는지 확인
+	 * 사용자가 ADMIN 권한이 있는지 확인
 	 */
-	private async checkUserIsOwner(userId: number, workspaceId: number): Promise<void> {
-		const hasPermission = await this.hasMinimumRole(userId, workspaceId, WorkspaceRole.OWNER);
+	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
+		const hasPermission = await this.hasMinimumRole(userId, workspaceId, WorkspaceRole.ADMIN);
 		if (!hasPermission) {
 			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
 		}

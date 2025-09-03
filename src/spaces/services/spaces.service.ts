@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between } from 'typeorm';
-import { Space } from '../entities/space.entity';
-import { UnavailableTime } from '../entities/unavailable-time.entity';
-import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { Between, Like, Repository } from 'typeorm';
+import { ErrorCode } from '../../common/constants/error-codes';
+import { AppException } from '../../common/exceptions/app.exception';
+import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateSpaceDto } from '../dto/create-space.dto';
-import { UpdateSpaceDto } from '../dto/update-space.dto';
 import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
-import { AppException } from '../../common/exceptions/app.exception';
-import { ErrorCode } from '../../common/constants/error-codes';
+import { UpdateSpaceDto } from '../dto/update-space.dto';
+import { Space } from '../entities/space.entity';
+import { UnavailableTime } from '../entities/unavailable-time.entity';
 
 @Injectable()
 export class SpacesService {
@@ -286,7 +286,7 @@ export class SpacesService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
+			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
 		});
 
 		if (!workspaceUser) {

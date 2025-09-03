@@ -74,7 +74,7 @@ export class WorkspacesController {
 
 	@Patch(':id')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 정보 수정 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
@@ -94,7 +94,7 @@ export class WorkspacesController {
 
 	@Patch(':id/deactivate')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 비활성화 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 비활성화되었습니다.' })
@@ -106,7 +106,7 @@ export class WorkspacesController {
 
 	@Patch(':id/activate')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 활성화 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 활성화되었습니다.' })
@@ -118,7 +118,7 @@ export class WorkspacesController {
 
 	@Delete(':id')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 삭제 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 삭제되었습니다.' })
@@ -130,7 +130,7 @@ export class WorkspacesController {
 
 	@Get(':id/users')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 사용자 목록 조회 (멤버 이상)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
@@ -148,7 +148,7 @@ export class WorkspacesController {
 
 	@Post(':id/users')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스에 사용자 추가 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 201, description: '사용자가 성공적으로 추가되었습니다.' })
@@ -164,7 +164,7 @@ export class WorkspacesController {
 
 	@Delete(':id/users/:userId')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스에서 사용자 제거 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiParam({ name: 'userId', description: '제거할 사용자 ID' })
@@ -181,7 +181,7 @@ export class WorkspacesController {
 
 	@Post(':id/invitation-codes')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '초대 코드 생성 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
@@ -200,7 +200,7 @@ export class WorkspacesController {
 
 	@Get(':id/invitation-codes')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '초대 코드 목록 조회 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
@@ -218,7 +218,7 @@ export class WorkspacesController {
 
 	@Put(':id/invitation-codes')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '초대 코드 갱신 (관리자 권한 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '초대 코드가 성공적으로 갱신되었습니다.' })
@@ -232,7 +232,7 @@ export class WorkspacesController {
 
 	@Delete('invitation-codes/:codeId')
 	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.OWNER)
+	@WorkspaceRoles(WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '초대 코드 삭제 (관리자 권한 필요)' })
 	@ApiParam({ name: 'codeId', description: '초대 코드 ID' })
 	@ApiResponse({ status: 200, description: '초대 코드가 성공적으로 삭제되었습니다.' })

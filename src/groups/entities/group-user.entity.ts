@@ -22,22 +22,22 @@ export enum GroupRole {
 @Unique(['groupId', 'userId'])
 @Index(['groupId'])
 @Index(['userId'])
-@Index(['groupId', 'role']) // 역할별 조회 최적화
+@Index(['groupId', 'role'])
 export class GroupUser {
-	@ApiProperty({ description: '그룹 멤버 ID' })
+	@ApiProperty({ description: '그룹 멤버 ID', example: 1 })
 	@PrimaryGeneratedColumn()
 	id: number;
 
-	@ApiProperty({ description: '그룹 ID' })
+	@ApiProperty({ description: '그룹 ID', example: 1 })
 	@Column({ name: 'group_id' })
 	groupId: number;
 
-	@ApiProperty({ description: '사용자 ID' })
-	@Column({ name: 'user_id' })
+	@ApiProperty({ description: '사용자 ID', example: 1 })
+	@Column({ name: 'user_id', type: 'int' })
 	userId: number;
 
 	@ApiProperty({
-		description: '그룹 역할',
+		description: '그룹 내 역할',
 		enum: GroupRole,
 		example: GroupRole.MEMBER,
 	})
@@ -50,21 +50,15 @@ export class GroupUser {
 
 	@ApiProperty({ description: '가입일시' })
 	@CreateDateColumn({ name: 'joined_at' })
-	createdAt: Date;
+	joinedAt: Date;
 
-	@ApiProperty({ description: '수정일시' })
+	@ApiProperty({ description: '수정일시', example: '2025-01-01T00:00:00.000Z' })
 	@UpdateDateColumn({ name: 'updated_at' })
 	updatedAt: Date;
 
 	// Relations
 	@ApiProperty({ description: '그룹 정보', type: () => Group })
-	@ManyToOne(
-		() => Group,
-		(group) => group.members,
-		{
-			onDelete: 'CASCADE',
-		},
-	)
+	@ManyToOne(() => Group, (group) => group.members)
 	@JoinColumn({ name: 'group_id' })
 	group: Group;
 

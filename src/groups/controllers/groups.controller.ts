@@ -39,7 +39,10 @@ export class GroupsController {
 	@ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
 	@ApiResponse({ status: 403, description: '워크스페이스 멤버가 아님' })
 	@ApiResponse({ status: 401, description: '인증 실패' })
-	create(@Body() createGroupDto: CreateGroupDto, @Req() req: AuthenticatedRequest): Promise<Group> {
+	create(
+		@Body() createGroupDto: CreateGroupDto,
+		@Req() req: AuthenticatedRequest,
+	): Promise<Group> {
 		return this.groupsService.create(createGroupDto, req.user.sub);
 	}
 
@@ -98,7 +101,10 @@ export class GroupsController {
 	@ApiResponse({ status: 400, description: '이미 가입된 멤버이거나 잘못된 요청' })
 	@ApiResponse({ status: 403, description: '가입 권한 없음 (비공개 그룹 등)' })
 	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
-	joinGroup(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest): Promise<GroupUser> {
+	joinGroup(
+		@Param('id', ParseIntPipe) id: number,
+		@Req() req: AuthenticatedRequest,
+	): Promise<GroupUser> {
 		return this.groupsService.joinGroup(id, req.user.sub);
 	}
 
@@ -108,7 +114,10 @@ export class GroupsController {
 	@ApiResponse({ status: 400, description: '그룹 멤버가 아님' })
 	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
 	@ApiResponse({ status: 409, description: '그룹 소유자는 탈퇴할 수 없음' })
-	leaveGroup(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest): Promise<void> {
+	leaveGroup(
+		@Param('id', ParseIntPipe) id: number,
+		@Req() req: AuthenticatedRequest,
+	): Promise<void> {
 		return this.groupsService.leaveGroup(id, req.user.sub);
 	}
 

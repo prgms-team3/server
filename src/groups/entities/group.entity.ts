@@ -28,13 +28,9 @@ export class Group {
 	@Column({ length: 100 })
 	name: string;
 
-	@ApiProperty({ description: '그룹 설명', required: false })
+	@ApiProperty({ description: '그룹 설명', example: '개발자 그룹', required: false })
 	@Column({ type: 'text', nullable: true })
 	description?: string;
-
-	@ApiProperty({ description: '그룹 생성자 ID' })
-	@Column({ name: 'creator_id' })
-	creatorId: number;
 
 	@ApiProperty({ description: '최대 멤버 수' })
 	@Column({ name: 'max_members', default: 10, type: 'int', unsigned: true })
@@ -62,22 +58,14 @@ export class Group {
 
 	// Relations
 	@ApiProperty({ description: '워크스페이스', type: () => Workspace })
-	@ManyToOne(
-		() => Workspace,
-		(workspace) => workspace.groups,
-		{ lazy: true },
-	)
+	@ManyToOne(() => Workspace, (workspace) => workspace.groups, { lazy: true })
 	@JoinColumn({ name: 'workspace_id' })
 	workspace: Workspace;
 
 	@ApiProperty({ description: '그룹 멤버들', type: () => [GroupUser] })
-	@OneToMany(
-		() => GroupUser,
-		(groupMember) => groupMember.group,
-		{
-			cascade: ['remove'], // 그룹 삭제 시 멤버도 함께 삭제
-		},
-	)
+	@OneToMany(() => GroupUser, (groupMember) => groupMember.group, {
+		cascade: ['remove'], // 그룹 삭제 시 멤버도 함께 삭제
+	})
 	members: GroupUser[];
 
 	// Virtual properties with proper typing
@@ -112,7 +100,11 @@ export class Group {
 	}
 
 	isAdmin(userId: number): boolean {
-		return this.members?.some((member) => member.userId === userId && member.role === GroupRole.ADMIN) ?? false;
+		return (
+			this.members?.some(
+				(member) => member.userId === userId && member.role === GroupRole.ADMIN,
+			) ?? false
+		);
 	}
 
 	canUserJoin(userId: number): boolean {

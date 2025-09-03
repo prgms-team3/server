@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-// import { SpacesModule } from './spaces/spaces.module';
-// import { ReservationsModule } from './reservations/reservations.module';
+import { SpacesModule } from './spaces/spaces.module';
+import { ReservationsModule } from './reservations/reservations.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -46,10 +46,9 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 		UsersModule,
 		AuthModule,
 		WorkspacesModule,
-		AuthModule,
 		GroupsModule,
-		// SpacesModule,
-		// ReservationsModule,
+		SpacesModule,
+		ReservationsModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

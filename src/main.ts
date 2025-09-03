@@ -59,4 +59,4 @@ function testAuthMiddleware(req, res, next) {
 	// 테스트용 사용자 ID 설정
 	req.user = { id: 1 }; // DB에 넣어둔 테스트 사용자 ID
 	next();
-  }
+}

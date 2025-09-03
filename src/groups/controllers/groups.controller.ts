@@ -18,7 +18,7 @@ import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
 import { Group } from '../entities/group.entity';
-import { GroupMember } from '../entities/group-member.entity';
+import { GroupRole, GroupUser } from '../entities/group-user.entity';
 import { GroupsService } from '../services/groups.service';
 
 @ApiTags('Groups')
@@ -39,10 +39,7 @@ export class GroupsController {
 	@ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
 	@ApiResponse({ status: 403, description: '워크스페이스 멤버가 아님' })
 	@ApiResponse({ status: 401, description: '인증 실패' })
-	create(
-		@Body() createGroupDto: CreateGroupDto,
-		@Req() req: AuthenticatedRequest,
-	): Promise<Group> {
+	create(@Body() createGroupDto: CreateGroupDto, @Req() req: AuthenticatedRequest): Promise<Group> {
 		return this.groupsService.create(createGroupDto, req.user.sub);
 	}
 
@@ -59,17 +56,6 @@ export class GroupsController {
 	@ApiResponse({ status: 200, description: '삭제된 그룹 목록', type: [Group] })
 	findDeleted(): Promise<Group[]> {
 		return this.groupsService.findDeleted();
-	}
-
-	@Get('workspace/:workspaceId')
-	@ApiOperation({ summary: '워크스페이스별 그룹 조회' })
-	@ApiResponse({
-		status: 200,
-		description: '워크스페이스 그룹 목록',
-		type: [Group],
-	})
-	findByWorkspace(@Param('workspaceId') workspaceId: string): Promise<Group[]> {
-		return this.groupsService.findByWorkspace(+workspaceId);
 	}
 
 	@Get(':id')
@@ -94,17 +80,6 @@ export class GroupsController {
 		return this.groupsService.update(id, updateGroupDto, req.user.sub);
 	}
 
-	@Patch(':id/restore')
-	@ApiOperation({ summary: '그룹 복원' })
-	@ApiResponse({
-		status: 200,
-		description: '그룹이 성공적으로 복원됨',
-		type: Group,
-	})
-	restore(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<Group> {
-		return this.groupsService.restore(+id, req.user.sub);
-	}
-
 	@Delete(':id')
 	@ApiOperation({ summary: '그룹 삭제' })
 	@ApiResponse({ status: 200, description: '그룹이 성공적으로 삭제됨' })
@@ -118,57 +93,62 @@ export class GroupsController {
 	@ApiResponse({
 		status: 201,
 		description: '그룹에 성공적으로 가입됨',
-		type: GroupMember,
+		type: GroupUser,
 	})
-	joinGroup(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<GroupMember> {
-		return this.groupsService.joinGroup(+id, req.user.sub);
+	@ApiResponse({ status: 400, description: '이미 가입된 멤버이거나 잘못된 요청' })
+	@ApiResponse({ status: 403, description: '가입 권한 없음 (비공개 그룹 등)' })
+	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+	joinGroup(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest): Promise<GroupUser> {
+		return this.groupsService.joinGroup(id, req.user.sub);
 	}
 
 	@Delete(':id/leave')
 	@ApiOperation({ summary: '그룹 탈퇴' })
 	@ApiResponse({ status: 200, description: '그룹에서 성공적으로 탈퇴됨' })
-	leaveGroup(@Param('id') id: string, @Req() req: AuthenticatedRequest): Promise<void> {
-		return this.groupsService.leaveGroup(+id, req.user.sub);
+	@ApiResponse({ status: 400, description: '그룹 멤버가 아님' })
+	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+	@ApiResponse({ status: 409, description: '그룹 소유자는 탈퇴할 수 없음' })
+	leaveGroup(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest): Promise<void> {
+		return this.groupsService.leaveGroup(id, req.user.sub);
 	}
 
-	@Patch(':id/members/:userId/promote')
-	@ApiOperation({ summary: '멤버를 관리자로 승격' })
+	@Get(':id/members')
+	@ApiOperation({ summary: '그룹 멤버 목록 조회' })
+	@ApiResponse({ status: 200, description: '그룹 멤버 목록', type: [GroupUser] })
+	@ApiResponse({ status: 404, description: '그룹을 찾을 수 없음' })
+	getMembers(@Param('id', ParseIntPipe) id: number): Promise<GroupUser[]> {
+		return this.groupsService.getMembers(id);
+	}
+
+	@Patch(':id/members/:userId/role')
+	@ApiOperation({ summary: '멤버 역할 변경' })
 	@ApiResponse({
 		status: 200,
-		description: '멤버가 관리자로 승격됨',
-		type: GroupMember,
+		description: '멤버 역할이 성공적으로 변경됨',
+		type: GroupUser,
 	})
-	promoteToAdmin(
-		@Param('id') id: string,
-		@Param('userId') userId: string,
+	@ApiResponse({ status: 403, description: '권한 없음 (관리자 권한 필요)' })
+	@ApiResponse({ status: 404, description: '그룹 또는 멤버를 찾을 수 없음' })
+	changeRole(
+		@Param('id', ParseIntPipe) id: number,
+		@Param('userId', ParseIntPipe) userId: number,
+		@Body() roleDto: { role: GroupRole },
 		@Req() req: AuthenticatedRequest,
-	): Promise<GroupMember> {
-		return this.groupsService.promoteToAdmin(+id, +userId, req.user.sub);
+	): Promise<GroupUser> {
+		return this.groupsService.changeRole(id, userId, roleDto.role, req.user.sub);
 	}
 
-	@Patch(':id/members/:userId/demote')
-	@ApiOperation({ summary: '관리자를 멤버로 강등' })
-	@ApiResponse({
-		status: 200,
-		description: '관리자가 멤버로 강등됨',
-		type: GroupMember,
-	})
-	demoteToMember(
-		@Param('id') id: string,
-		@Param('userId') userId: string,
-		@Req() req: AuthenticatedRequest,
-	): Promise<GroupMember> {
-		return this.groupsService.demoteToMember(+id, +userId, req.user.sub);
-	}
-
-	@Delete(':id/members/:userId/kick')
+	@Delete(':id/members/:userId')
 	@ApiOperation({ summary: '멤버 추방' })
-	@ApiResponse({ status: 200, description: '멤버가 추방됨' })
+	@ApiResponse({ status: 200, description: '멤버가 성공적으로 추방됨' })
+	@ApiResponse({ status: 400, description: '자신을 추방할 수 없음' })
+	@ApiResponse({ status: 403, description: '권한 없음 (관리자 권한 필요)' })
+	@ApiResponse({ status: 404, description: '그룹 또는 멤버를 찾을 수 없음' })
 	kickMember(
-		@Param('id') id: string,
-		@Param('userId') userId: string,
+		@Param('id', ParseIntPipe) id: number,
+		@Param('userId', ParseIntPipe) userId: number,
 		@Req() req: AuthenticatedRequest,
 	): Promise<void> {
-		return this.groupsService.kickMember(+id, +userId, req.user.sub);
+		return this.groupsService.kickMember(id, userId, req.user.sub);
 	}
 }

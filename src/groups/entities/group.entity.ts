@@ -94,11 +94,11 @@ export class Group {
 	}
 
 	// Business logic methods
-	isMember(userId: number): boolean {
+	isUserMember(userId: number): boolean {
 		return this.members?.some((member) => member.userId === userId) ?? false;
 	}
 
-	isAdmin(userId: number): boolean {
+	isUserAdmin(userId: number): boolean {
 		return (
 			this.members?.some(
 				(member) => member.userId === userId && member.role === GroupRole.ADMIN,
@@ -106,11 +106,16 @@ export class Group {
 		);
 	}
 
+	getUserRole(userId: number): GroupRole | null {
+		const member = this.members?.find((member) => member.userId === userId);
+		return member?.role ?? null;
+	}
+
 	canUserJoin(userId: number): boolean {
-		return !this.isMember(userId) && this.canAddMember && this.isActive;
+		return !this.isUserMember(userId) && this.canAddMember && this.isActive;
 	}
 
 	canUserManage(userId: number): boolean {
-		return this.isAdmin(userId);
+		return this.isUserAdmin(userId);
 	}
 }

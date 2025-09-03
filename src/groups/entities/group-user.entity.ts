@@ -39,7 +39,18 @@ export class GroupUser {
 	@ApiProperty({
 		description: '그룹 내 역할',
 		enum: GroupRole,
+		enumName: 'GroupRole',
 		example: GroupRole.MEMBER,
+		examples: {
+			admin: {
+				value: 'ADMIN',
+				description: '관리자 - 그룹 설정 변경, 멤버 관리, 역할 변경 권한',
+			},
+			member: {
+				value: 'MEMBER',
+				description: '일반 멤버 - 그룹 참여 및 기본 활동 권한',
+			},
+		},
 	})
 	@Column({
 		type: 'enum',

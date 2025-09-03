@@ -6,6 +6,7 @@ import {
 	NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { UpdateReservationDto } from 'src/reservations/dto/update-reservation.dto';
 import { IsNull, Not, Repository } from 'typeorm';
 import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateGroupDto } from '../dto/create-group.dto';
@@ -19,15 +20,15 @@ export class GroupsService {
 		@InjectRepository(Group)
 		private groupRepository: Repository<Group>,
 		@InjectRepository(GroupUser)
-		private groupMemberRepository: Repository<GroupUser>,
+		private groupUserRepository: Repository<GroupUser>,
 		@InjectRepository(WorkspaceUser)
 		private workspaceUserRepository: Repository<WorkspaceUser>,
 	) {}
 
-	async create(createGroupDto: CreateGroupDto, creatorId: number): Promise<Group> {
+	async create(createGroupDto: CreateGroupDto, userId: number): Promise<Group> {
 		// 워크스페이스 멤버십 검증
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId: creatorId, workspaceId: createGroupDto.workspaceId },
+			where: { userId, workspaceId: createGroupDto.workspaceId },
 		});
 
 		if (!workspaceUser) {
@@ -40,14 +41,14 @@ export class GroupsService {
 
 		const savedGroup = await this.groupRepository.save(group);
 
-		// 생성자를 그룹의 관리자로 자동 추가
-		const creatorMember = this.groupMemberRepository.create({
+		// 생성자(현재 유저)를 그룹의 관리자로 자동 추가
+		const creatorMember = this.groupUserRepository.create({
 			groupId: savedGroup.id,
-			userId: creatorId,
-			role: GroupRole.ADMIN, // 생성자는 관리자로 설정
+			userId, // 현재 유저를 관리자로 설정
+			role: GroupRole.ADMIN,
 		});
 
-		await this.groupMemberRepository.save(creatorMember);
+		await this.groupUserRepository.save(creatorMember); // 저장 추가
 
 		return savedGroup;
 	}
@@ -55,14 +56,14 @@ export class GroupsService {
 	async findByWorkspace(workspaceId: number): Promise<Group[]> {
 		return await this.groupRepository.find({
 			where: { workspaceId },
-			relations: ['creator', 'members', 'members.user'],
+			relations: ['members', 'members.user'],
 			order: { createdAt: 'DESC' }, // 최신순 정렬 추가
 		});
 	}
 
 	async findAll(): Promise<Group[]> {
 		return await this.groupRepository.find({
-			relations: ['creator', 'workspace', 'members', 'members.user'],
+			relations: ['workspace', 'members', 'members.user'],
 			order: { createdAt: 'DESC' }, // 최신순 정렬 추가
 		});
 	}
@@ -72,7 +73,6 @@ export class GroupsService {
 	async findOne(id: number): Promise<Group> {
 		const group = await this.groupRepository
 			.createQueryBuilder('group')
-			.leftJoinAndSelect('group.creator', 'creator')
 			.leftJoinAndSelect('group.workspace', 'workspace')
 			.leftJoinAndSelect('group.members', 'members')
 			.leftJoinAndSelect('members.user', 'user')
@@ -92,7 +92,7 @@ export class GroupsService {
 		const group = await this.findOne(id);
 
 		// 그룹 관리자 권한 확인
-		if (!group.isAdmin(userId)) {
+		if (!group.isUserAdmin(userId)) {
 			throw new ForbiddenException('그룹 관리자만 수정할 수 있습니다');
 		}
 
@@ -104,7 +104,7 @@ export class GroupsService {
 		const group = await this.findOne(id);
 
 		// 그룹 관리자 권한 확인
-		if (!group.isAdmin(userId)) {
+		if (!group.isUserAdmin(userId)) {
 			throw new ForbiddenException('그룹 관리자만 삭제할 수 있습니다');
 		}
 
@@ -117,7 +117,7 @@ export class GroupsService {
 		// 비활성화된 그룹 조회
 		const group = await this.groupRepository.findOne({
 			where: { id },
-			relations: ['creator', 'workspace', 'members', 'members.user'],
+			relations: ['workspace', 'members', 'members.user'],
 		});
 
 		if (!group) {
@@ -130,7 +130,7 @@ export class GroupsService {
 		}
 
 		// 그룹 관리자 권한 확인
-		if (!group.isAdmin(userId)) {
+		if (!group.isUserAdmin(userId)) {
 			throw new ForbiddenException('그룹 관리자만 복원할 수 있습니다');
 		}
 
@@ -142,7 +142,7 @@ export class GroupsService {
 	async findDeleted(): Promise<Group[]> {
 		return await this.groupRepository.find({
 			where: { isActive: false },
-			relations: ['creator', 'workspace'],
+			relations: ['workspace'],
 		});
 	}
 
@@ -157,7 +157,7 @@ export class GroupsService {
 		await this.validateWorkspaceMembership(userId, group.workspaceId);
 
 		// 이미 멤버인지 확인
-		const existingMember = await this.groupMemberRepository.findOne({
+		const existingMember = await this.groupUserRepository.findOne({
 			where: { groupId, userId },
 		});
 		if (existingMember) {
@@ -175,13 +175,13 @@ export class GroupsService {
 		}
 
 		// 멤버로 가입
-		const newMember = this.groupMemberRepository.create({
+		const newMember = this.groupUserRepository.create({
 			groupId,
 			userId,
 			role: GroupRole.MEMBER,
 		});
 
-		return await this.groupMemberRepository.save(newMember);
+		return await this.groupUserRepository.save(newMember);
 	}
 
 	async leaveGroup(groupId: number, userId: number): Promise<void> {
@@ -192,7 +192,7 @@ export class GroupsService {
 		}
 
 		// 멤버인지 확인
-		const member = await this.groupMemberRepository.findOne({
+		const member = await this.groupUserRepository.findOne({
 			where: { groupId, userId },
 		});
 		if (!member) {
@@ -201,7 +201,7 @@ export class GroupsService {
 
 		// 마지막 관리자는 탈퇴 불가
 		if (member.role === GroupRole.ADMIN) {
-			const otherAdmins = await this.groupMemberRepository.count({
+			const otherAdmins = await this.groupUserRepository.count({
 				where: {
 					groupId,
 					role: GroupRole.ADMIN,
@@ -216,7 +216,7 @@ export class GroupsService {
 			}
 		}
 
-		await this.groupMemberRepository.remove(member);
+		await this.groupUserRepository.remove(member);
 	}
 
 	async getMembers(groupId: number): Promise<GroupUser[]> {
@@ -226,7 +226,7 @@ export class GroupsService {
 			throw new NotFoundException('그룹을 찾을 수 없습니다');
 		}
 
-		return await this.groupMemberRepository.find({
+		return await this.groupUserRepository.find({
 			where: { groupId },
 			relations: ['user'],
 		});
@@ -242,7 +242,7 @@ export class GroupsService {
 		await this.checkAdminPermission(groupId, requestUserId);
 
 		// 대상 멤버 확인
-		const targetMember = await this.groupMemberRepository.findOne({
+		const targetMember = await this.groupUserRepository.findOne({
 			where: { groupId, userId: targetUserId },
 		});
 		if (!targetMember) {
@@ -255,40 +255,187 @@ export class GroupsService {
 		}
 
 		targetMember.role = newRole;
-		return await this.groupMemberRepository.save(targetMember);
+		return await this.groupUserRepository.save(targetMember);
 	}
 
-	async kickMember(groupId: number, targetUserId: number, requestUserId: number): Promise<void> {
+	async promoteToAdmin(
+		groupId: number,
+		targetUserId: number,
+		requestUserId: number,
+	): Promise<GroupUser> {
 		// 권한 확인
 		await this.checkAdminPermission(groupId, requestUserId);
 
-		// 자신을 추방할 수 없음
-		if (targetUserId === requestUserId) {
-			throw new BadRequestException('자신을 추방할 수 없습니다');
-		}
-
 		// 대상 멤버 확인
-		const targetMember = await this.groupMemberRepository.findOne({
+		const targetMember = await this.groupUserRepository.findOne({
 			where: { groupId, userId: targetUserId },
 		});
 		if (!targetMember) {
 			throw new NotFoundException('대상 멤버를 찾을 수 없습니다');
 		}
 
-		await this.groupMemberRepository.remove(targetMember);
+		// 자신을 승진시킬 수 없음
+		if (targetUserId === requestUserId) {
+			throw new BadRequestException('자신을 승진시킬 수 없습니다');
+		}
+
+		// 이미 관리자인 경우
+		if (targetMember.role === GroupRole.ADMIN) {
+			throw new BadRequestException('이미 관리자입니다');
+		}
+
+		targetMember.role = GroupRole.ADMIN;
+		return await this.groupUserRepository.save(targetMember);
 	}
 
-	private async checkAdminPermission(groupId: number, userId: number): Promise<void> {
-		const member = await this.groupMemberRepository.findOne({
+	async demoteToMember(
+		groupId: number,
+		targetUserId: number,
+		requestUserId: number,
+	): Promise<GroupUser> {
+		// 권한 확인
+		await this.checkAdminPermission(groupId, requestUserId);
+
+		// 대상 멤버 확인
+		const targetMember = await this.groupUserRepository.findOne({
+			where: { groupId, userId: targetUserId },
+		});
+		if (!targetMember) {
+			throw new NotFoundException('대상 멤버를 찾을 수 없습니다');
+		}
+
+		// 자신을 강등시킬 수 없음
+		if (targetUserId === requestUserId) {
+			throw new BadRequestException('자신을 강등시킬 수 없습니다');
+		}
+
+		// 이미 일반 멤버인 경우
+		if (targetMember.role === GroupRole.MEMBER) {
+			throw new BadRequestException('이미 일반 멤버입니다');
+		}
+
+		// 마지막 관리자인지 확인
+		const otherAdmins = await this.groupUserRepository.count({
+			where: {
+				groupId,
+				role: GroupRole.ADMIN,
+				userId: Not(targetUserId),
+			},
+		});
+
+		if (otherAdmins === 0) {
+			throw new BadRequestException('마지막 관리자는 강등할 수 없습니다');
+		}
+
+		targetMember.role = GroupRole.MEMBER;
+		return await this.groupUserRepository.save(targetMember);
+	}
+
+	/**
+	 * 관리자가 멤버를 그룹에 추가
+	 */
+	async addMember(groupId: number, userId: number, adminId: number): Promise<GroupUser> {
+		// 그룹 존재 및 멤버 정보와 함께 조회
+		const group = await this.groupRepository.findOne({
+			where: { id: groupId },
+			relations: ['members', 'workspace'],
+		});
+
+		if (!group) {
+			throw new NotFoundException('그룹을 찾을 수 없습니다.');
+		}
+
+		// 관리자 권한 확인 (엔티티 메서드 활용)
+		if (!group.isUserAdmin(adminId)) {
+			throw new ForbiddenException('그룹 멤버를 추가할 권한이 없습니다.');
+		}
+
+		// 이미 그룹 멤버인지 확인 (엔티티 메서드 활용)
+		if (group.isUserMember(userId)) {
+			throw new BadRequestException('이미 그룹 멤버입니다.');
+		}
+
+		// 워크스페이스 멤버십 확인
+		await this.validateWorkspaceMembership(userId, group.workspaceId);
+
+		// 최대 멤버 수 확인
+		if (!group.canAddMember) {
+			throw new BadRequestException('그룹 정원이 가득 찼습니다.');
+		}
+
+		// 그룹에 멤버 추가
+		const groupUser = this.groupUserRepository.create({
+			groupId,
+			userId,
+			role: GroupRole.MEMBER,
+		});
+
+		return await this.groupUserRepository.save(groupUser);
+	}
+
+	/**
+	 * 관리자가 멤버를 그룹에서 제거
+	 */
+	async removeMember(groupId: number, userId: number, adminId: number): Promise<void> {
+		// 그룹 존재 및 멤버 정보와 함께 조회
+		const group = await this.groupRepository.findOne({
+			where: { id: groupId },
+			relations: ['members'],
+		});
+
+		if (!group) {
+			throw new NotFoundException('그룹을 찾을 수 없습니다.');
+		}
+
+		// 자신을 제거하려는 시도 방지
+		if (userId === adminId) {
+			throw new BadRequestException('자신을 제거할 수 없습니다. 그룹 탈퇴를 이용해주세요.');
+		}
+
+		// 관리자 권한 확인 (엔티티 메서드 활용)
+		if (!group.isUserAdmin(adminId)) {
+			throw new ForbiddenException('그룹 멤버를 제거할 권한이 없습니다.');
+		}
+
+		// 제거할 사용자가 멤버인지 확인 (엔티티 메서드 활용)
+		if (!group.isUserMember(userId)) {
+			throw new NotFoundException('해당 사용자는 그룹 멤버가 아닙니다.');
+		}
+
+		// 제거할 멤버의 역할 확인
+		const targetRole = group.getUserRole(userId);
+
+		// 관리자를 제거하려는 경우 마지막 관리자인지 확인
+		if (targetRole === GroupRole.ADMIN) {
+			const adminCount =
+				group.members?.filter((member) => member.role === GroupRole.ADMIN).length ?? 0;
+			if (adminCount <= 1) {
+				throw new BadRequestException('마지막 관리자는 제거할 수 없습니다.');
+			}
+		}
+
+		// 실제 멤버 엔티티 조회 후 제거
+		const targetMembership = await this.groupUserRepository.findOne({
 			where: { groupId, userId },
 		});
 
-		if (!member) {
-			throw new ForbiddenException('그룹 멤버가 아닙니다');
+		if (targetMembership) {
+			await this.groupUserRepository.remove(targetMembership);
+		}
+	}
+
+	private async checkAdminPermission(groupId: number, userId: number): Promise<void> {
+		const group = await this.groupRepository.findOne({
+			where: { id: groupId },
+			relations: ['members'],
+		});
+
+		if (!group) {
+			throw new NotFoundException('그룹을 찾을 수 없습니다.');
 		}
 
-		if (member.role !== GroupRole.ADMIN) {
-			throw new ForbiddenException('관리자 권한이 필요합니다');
+		if (!group.isUserAdmin(userId)) {
+			throw new ForbiddenException('관리자 권한이 필요합니다.');
 		}
 	}
 

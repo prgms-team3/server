@@ -4,7 +4,7 @@ import { Repository, Between, Not, In, EntityManager } from 'typeorm';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
 import { Space } from '../../spaces/entities/space.entity';
 import { UnavailableTime } from '../../spaces/entities/unavailable-time.entity';
-import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { UpdateReservationDto } from '../dto/update-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
@@ -579,7 +579,7 @@ export class ReservationsService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
+			where: { userId, workspaceId, role: WorkspaceRole.OWNER },
 		});
 
 		if (!workspaceUser) {
@@ -592,7 +592,7 @@ export class ReservationsService {
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
+			where: { userId, workspaceId, role: WorkspaceRole.OWNER },
 		});
 
 		return !!workspaceUser;

@@ -1,16 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In, EntityManager } from 'typeorm';
-import { Reservation, ReservationStatus } from '../entities/reservation.entity';
+import { Between, EntityManager, In, Not, Repository } from 'typeorm';
+import { ErrorCode } from '../../common/constants/error-codes';
+import { AppException } from '../../common/exceptions/app.exception';
 import { Space } from '../../spaces/entities/space.entity';
 import { UnavailableTime } from '../../spaces/entities/unavailable-time.entity';
-import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
-import { UpdateReservationDto } from '../dto/update-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
-import { AvailableTimesQueryDto } from '../dto/available-times-query.dto';
-import { AppException } from '../../common/exceptions/app.exception';
-import { ErrorCode } from '../../common/constants/error-codes';
+import { UpdateReservationDto } from '../dto/update-reservation.dto';
+import { Reservation, ReservationStatus } from '../entities/reservation.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -90,34 +89,34 @@ export class ReservationsService {
 	 * 예약 생성 2
 	 */
 	async create(createReservationDto: CreateReservationDto, userId: number): Promise<Reservation> {
-		return this.dataSource.transaction(async manager => {
+		return this.dataSource.transaction(async (manager) => {
 			const { spaceId, startTime, endTime, purpose } = createReservationDto;
 			const reservationStartTime = new Date(startTime);
 			const reservationEndTime = new Date(endTime);
-	  
+
 			// 시간 유효성 검사 (트랜잭션 외부에서 수행해도 무방)
 			if (reservationStartTime >= reservationEndTime) {
 				throw new AppException({
-				code: 'INVALID_TIME_RANGE',
-				message: '시작 시간은 종료 시간보다 이전이어야 합니다.',
-				status: 400,
+					code: 'INVALID_TIME_RANGE',
+					message: '시작 시간은 종료 시간보다 이전이어야 합니다.',
+					status: 400,
 				});
 			}
-		
+
 			if (reservationStartTime < new Date()) {
 				throw new AppException({
-				code: 'INVALID_TIME_RANGE',
-				message: '과거 시간으로는 예약할 수 없습니다.',
-				status: 400,
+					code: 'INVALID_TIME_RANGE',
+					message: '과거 시간으로는 예약할 수 없습니다.',
+					status: 400,
 				});
 			}
-		
+
 			// 공간 및 접근 권한 확인
 			const space = await manager.findOne(Space, {
 				where: { id: spaceId, isActive: true },
 				relations: ['workspace'],
 			});
-		
+
 			if (!space) {
 				throw new AppException(ErrorCode.SPACE_NOT_FOUND);
 			}
@@ -126,13 +125,18 @@ export class ReservationsService {
 			await this.checkUserInWorkspace(userId, space.workspaceId);
 
 			// 예약 가능 여부 확인
-			await this.checkAvailability(manager, spaceId, reservationStartTime, reservationEndTime);
+			await this.checkAvailability(
+				manager,
+				spaceId,
+				reservationStartTime,
+				reservationEndTime,
+			);
 
 			// 승인이 필요한 공간인지 확인하여 초기 상태 설정
 			const initialStatus = space.requiresApproval
 				? ReservationStatus.PENDING
 				: ReservationStatus.APPROVED;
-			
+
 			// 예약 생성 및 저장
 			const reservation = manager.create(Reservation, {
 				spaceId,
@@ -142,10 +146,10 @@ export class ReservationsService {
 				purpose,
 				status: initialStatus,
 			});
-			
+
 			return manager.save(reservation);
 		});
-	  }
+	}
 
 	/**
 	 * 사용자 예약 목록 조회
@@ -267,7 +271,7 @@ export class ReservationsService {
 		updateReservationDto: UpdateReservationDto,
 		userId: number,
 	): Promise<Reservation> {
-		return this.dataSource.transaction(async manager => {
+		return this.dataSource.transaction(async (manager) => {
 			const reservation = await this.reservationRepository.findOne({
 				where: { id },
 				relations: ['space'],
@@ -313,7 +317,13 @@ export class ReservationsService {
 					});
 				}
 
-				await this.checkAvailability(manager, reservation.spaceId, newStartTime, newEndTime, id);
+				await this.checkAvailability(
+					manager,
+					reservation.spaceId,
+					newStartTime,
+					newEndTime,
+					id,
+				);
 			}
 
 			Object.assign(reservation, updateReservationDto);
@@ -534,16 +544,16 @@ export class ReservationsService {
 
 		// 비관적 락을 사용한 예약 가능 여부 확인
 		const conflictingReservations = await manager
-		.createQueryBuilder(Reservation, 'reservation')
-		.setLock('pessimistic_write')
-		.where('reservation.spaceId = :spaceId', { spaceId })
-		.andWhere('reservation.status IN (:...statuses)', {
-		  statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING],
-		})
-		.andWhere('reservation.startTime < :endTime', { endTime })
-		.andWhere('reservation.endTime > :startTime', { startTime })
-		.getMany();
-  
+			.createQueryBuilder(Reservation, 'reservation')
+			.setLock('pessimistic_write')
+			.where('reservation.spaceId = :spaceId', { spaceId })
+			.andWhere('reservation.status IN (:...statuses)', {
+				statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING],
+			})
+			.andWhere('reservation.startTime < :endTime', { endTime })
+			.andWhere('reservation.endTime > :startTime', { startTime })
+			.getMany();
+
 		if (conflictingReservations.length > 0) {
 			throw new AppException(ErrorCode.RESERVATION_CONFLICT);
 		}
@@ -579,7 +589,7 @@ export class ReservationsService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.OWNER },
+			where: { userId, workspaceId, isAdmin: true },
 		});
 
 		if (!workspaceUser) {
@@ -592,7 +602,7 @@ export class ReservationsService {
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.OWNER },
+			where: { userId, workspaceId, isAdmin: true },
 		});
 
 		return !!workspaceUser;

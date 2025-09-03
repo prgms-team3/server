@@ -8,14 +8,7 @@ import { UnavailableTime } from './entities/unavailable-time.entity';
 import { WorkspaceUser } from '../workspaces/entities/workspace-user.entity';
 
 @Module({
-	imports: [
-		TypeOrmModule.forFeature([
-			Space,
-			SpaceImage,
-			UnavailableTime,
-			WorkspaceUser,
-		]),
-	],
+	imports: [TypeOrmModule.forFeature([Space, SpaceImage, UnavailableTime, WorkspaceUser])],
 	controllers: [SpacesController, AmenitiesController],
 	providers: [SpacesService],
 	exports: [SpacesService],

@@ -11,7 +11,14 @@ import {
 	ParseIntPipe,
 	UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiParam,
+	ApiQuery,
+	ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SpacesService } from '../services/spaces.service';
 import { CreateSpaceDto } from '../dto/create-space.dto';
 import { UpdateSpaceDto } from '../dto/update-space.dto';

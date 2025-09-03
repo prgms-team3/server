@@ -1,16 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, Between } from 'typeorm';
-import { Space } from '../entities/space.entity';
-import { UnavailableTime } from '../entities/unavailable-time.entity';
-import { WorkspaceUser, WorkspaceRole } from '../../workspaces/entities/workspace-user.entity';
+import { Between, Like, Repository } from 'typeorm';
+import { ErrorCode } from '../../common/constants/error-codes';
+import { AppException } from '../../common/exceptions/app.exception';
+import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateSpaceDto } from '../dto/create-space.dto';
-import { UpdateSpaceDto } from '../dto/update-space.dto';
 import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
-import { AppException } from '../../common/exceptions/app.exception';
-import { ErrorCode } from '../../common/constants/error-codes';
-
+import { UpdateSpaceDto } from '../dto/update-space.dto';
+import { Space } from '../entities/space.entity';
+import { UnavailableTime } from '../entities/unavailable-time.entity';
 @Injectable()
 export class SpacesService {
 	constructor(
@@ -39,7 +38,6 @@ export class SpacesService {
 		});
 
 		const savedSpace = await this.spaceRepository.save(space);
-
 
 		return this.findOne(savedSpace.id, userId);
 	}
@@ -90,11 +88,7 @@ export class SpacesService {
 	async findOne(id: number, userId: number): Promise<Space> {
 		const space = await this.spaceRepository.findOne({
 			where: { id },
-			relations: [
-				'workspace',
-				'images',
-				'unavailableTimes',
-			],
+			relations: ['workspace', 'images', 'unavailableTimes'],
 		});
 
 		if (!space) {
@@ -121,7 +115,6 @@ export class SpacesService {
 
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, space.workspaceId);
-
 
 		Object.assign(space, updateSpaceDto);
 		await this.spaceRepository.save(space);
@@ -274,7 +267,6 @@ export class SpacesService {
 		await this.unavailableTimeRepository.remove(unavailableTime);
 	}
 
-
 	/**
 	 * 사용자가 워크스페이스에 속해있는지 확인
 	 */
@@ -293,7 +285,7 @@ export class SpacesService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.OWNER },
+			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
 		});
 
 		if (!workspaceUser) {

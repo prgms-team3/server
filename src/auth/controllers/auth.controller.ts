@@ -17,7 +17,6 @@ import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 
-
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {

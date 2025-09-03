@@ -9,10 +9,10 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
+import { Reservation } from '../../reservations/entities/reservation.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 import { SpaceImage } from './space-image.entity';
 import { UnavailableTime } from './unavailable-time.entity';
-import { Reservation } from '../../reservations/entities/reservation.entity';
 
 @Entity('space')
 export class Space {
@@ -68,9 +68,9 @@ export class Space {
 	deleted: boolean;
 
 	/* Relations */
-	@ManyToOne(() => Workspace, (workspace) => workspace.spaces)
-	@JoinColumn({ name: 'workspace_id' })
-	workspace: Workspace;
+	// @ManyToOne(() => Workspace, (workspace) => workspace.spaces)
+	// @JoinColumn({ name: 'workspace_id' })
+	// workspace: Workspace;
 
 	@OneToMany(() => SpaceImage, (spaceImage) => spaceImage.space)
 	images: SpaceImage[];

@@ -12,7 +12,7 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from './workspace.entity';
 
 export enum WorkspaceRole {
-	OWNER = 'OWNER',
+	ADMIN = 'ADMIN',
 	MEMBER = 'MEMBER',
 }
 
@@ -51,10 +51,12 @@ export class WorkspaceUser {
 	updatedAt: Date;
 
 	/* Relations */
+	@ApiProperty({ description: 'Workspace information', type: () => Workspace })
 	@ManyToOne(() => Workspace, (workspace) => workspace.workspaceUsers)
 	@JoinColumn({ name: 'workspace_id' })
 	workspace: Workspace;
 
+	@ApiProperty({ description: 'User information', type: () => User })
 	@ManyToOne(() => User)
 	@JoinColumn({ name: 'user_id' })
 	user: User;

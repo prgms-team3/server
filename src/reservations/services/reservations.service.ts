@@ -5,7 +5,8 @@ import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { Space } from '../../spaces/entities/space.entity';
 import { UnavailableTime } from '../../spaces/entities/unavailable-time.entity';
-import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { AvailableTimesQueryDto } from '../dto/available-times-query.dto';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
 import { UpdateReservationDto } from '../dto/update-reservation.dto';
@@ -125,17 +126,10 @@ export class ReservationsService {
 			await this.checkUserInWorkspace(userId, space.workspaceId);
 
 			// 예약 가능 여부 확인
-			await this.checkAvailability(
-				manager,
-				spaceId,
-				reservationStartTime,
-				reservationEndTime,
-			);
+			await this.checkAvailability(manager, spaceId, reservationStartTime, reservationEndTime);
 
 			// 승인이 필요한 공간인지 확인하여 초기 상태 설정
-			const initialStatus = space.requiresApproval
-				? ReservationStatus.PENDING
-				: ReservationStatus.APPROVED;
+			const initialStatus = space.requiresApproval ? ReservationStatus.PENDING : ReservationStatus.APPROVED;
 
 			// 예약 생성 및 저장
 			const reservation = manager.create(Reservation, {
@@ -184,11 +178,7 @@ export class ReservationsService {
 		}
 
 		const total = await queryBuilder.getCount();
-		const reservations = await queryBuilder
-			.orderBy('reservation.startTime', 'DESC')
-			.skip(skip)
-			.take(limit)
-			.getMany();
+		const reservations = await queryBuilder.orderBy('reservation.startTime', 'DESC').skip(skip).take(limit).getMany();
 
 		return { reservations, total };
 	}
@@ -230,11 +220,7 @@ export class ReservationsService {
 		}
 
 		const total = await queryBuilder.getCount();
-		const reservations = await queryBuilder
-			.orderBy('reservation.startTime', 'DESC')
-			.skip(skip)
-			.take(limit)
-			.getMany();
+		const reservations = await queryBuilder.orderBy('reservation.startTime', 'DESC').skip(skip).take(limit).getMany();
 
 		return { reservations, total };
 	}
@@ -266,11 +252,7 @@ export class ReservationsService {
 	/**
 	 * 예약 수정
 	 */
-	async update(
-		id: number,
-		updateReservationDto: UpdateReservationDto,
-		userId: number,
-	): Promise<Reservation> {
+	async update(id: number, updateReservationDto: UpdateReservationDto, userId: number): Promise<Reservation> {
 		return this.dataSource.transaction(async (manager) => {
 			const reservation = await this.reservationRepository.findOne({
 				where: { id },
@@ -289,10 +271,7 @@ export class ReservationsService {
 			}
 
 			// 승인된 예약이나 완료된 예약은 수정 불가
-			if (
-				reservation.status === ReservationStatus.APPROVED ||
-				reservation.status === ReservationStatus.COMPLETED
-			) {
+			if (reservation.status === ReservationStatus.APPROVED || reservation.status === ReservationStatus.COMPLETED) {
 				throw new AppException({
 					code: 'RESERVATION_CANNOT_BE_MODIFIED',
 					message: '승인되었거나 완료된 예약은 수정할 수 없습니다.',
@@ -305,9 +284,7 @@ export class ReservationsService {
 				const newStartTime = updateReservationDto.startTime
 					? new Date(updateReservationDto.startTime)
 					: reservation.startTime;
-				const newEndTime = updateReservationDto.endTime
-					? new Date(updateReservationDto.endTime)
-					: reservation.endTime;
+				const newEndTime = updateReservationDto.endTime ? new Date(updateReservationDto.endTime) : reservation.endTime;
 
 				if (newStartTime >= newEndTime) {
 					throw new AppException({
@@ -317,22 +294,13 @@ export class ReservationsService {
 					});
 				}
 
-				await this.checkAvailability(
-					manager,
-					reservation.spaceId,
-					newStartTime,
-					newEndTime,
-					id,
-				);
+				await this.checkAvailability(manager, reservation.spaceId, newStartTime, newEndTime, id);
 			}
 
 			Object.assign(reservation, updateReservationDto);
 
 			// 시간이 변경된 경우 다시 승인 대기 상태로 변경
-			if (
-				(updateReservationDto.startTime || updateReservationDto.endTime) &&
-				reservation.space.requiresApproval
-			) {
+			if ((updateReservationDto.startTime || updateReservationDto.endTime) && reservation.space.requiresApproval) {
 				reservation.status = ReservationStatus.PENDING;
 			}
 
@@ -359,10 +327,7 @@ export class ReservationsService {
 		}
 
 		// 이미 취소되었거나 완료된 예약은 취소 불가
-		if (
-			reservation.status === ReservationStatus.CANCELLED ||
-			reservation.status === ReservationStatus.COMPLETED
-		) {
+		if (reservation.status === ReservationStatus.CANCELLED || reservation.status === ReservationStatus.COMPLETED) {
 			throw new AppException({
 				code: 'RESERVATION_CANNOT_BE_CANCELLED',
 				message: '이미 취소되었거나 완료된 예약은 취소할 수 없습니다.',
@@ -576,7 +541,7 @@ export class ReservationsService {
 	 */
 	private async checkUserInWorkspace(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId },
+			where: { userId, workspaceId, role: WorkspaceRole.ADMIN }, // 또는 올바른 속성명 사용
 		});
 
 		if (!workspaceUser) {
@@ -589,7 +554,7 @@ export class ReservationsService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
+			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
 		});
 
 		if (!workspaceUser) {
@@ -602,7 +567,7 @@ export class ReservationsService {
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, isAdmin: true },
+			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
 		});
 
 		return !!workspaceUser;

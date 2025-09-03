@@ -26,7 +26,7 @@ import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
 import { Space } from '../entities/space.entity';
 import { UnavailableTime } from '../entities/unavailable-time.entity';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Spaces')
 @ApiBearerAuth()

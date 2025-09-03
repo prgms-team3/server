@@ -25,7 +25,7 @@ import { UpdateReservationDto } from '../dto/update-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
 import { AvailableTimesQueryDto } from '../dto/available-times-query.dto';
 import { Reservation } from '../entities/reservation.entity';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Reservations')
 @ApiBearerAuth()

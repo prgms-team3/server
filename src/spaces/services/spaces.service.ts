@@ -10,7 +10,6 @@ import { SpaceQueryDto } from '../dto/space-query.dto';
 import { UpdateSpaceDto } from '../dto/update-space.dto';
 import { Space } from '../entities/space.entity';
 import { UnavailableTime } from '../entities/unavailable-time.entity';
-
 @Injectable()
 export class SpacesService {
 	constructor(

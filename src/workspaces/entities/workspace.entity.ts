@@ -8,6 +8,7 @@ import {
 	UpdateDateColumn,
 } from 'typeorm';
 import { Group } from '../../groups/entities/group.entity';
+import { Space } from '../../spaces/entities/space.entity';
 import { InvitationHistory } from './invitation-history.entity';
 import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
 import { WorkspaceUser } from './workspace-user.entity';
@@ -78,6 +79,8 @@ export class Workspace {
 	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.workspace)
 	invitationHistories: InvitationHistory[];
 
+	@OneToMany(() => Space, (space) => space.workspace)
+	spaces: Space[];
 	// Virtual properties
 	@ApiProperty({ description: '총 멤버 수' })
 	get totalMembers(): number {

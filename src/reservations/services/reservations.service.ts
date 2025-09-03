@@ -5,8 +5,7 @@ import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { Space } from '../../spaces/entities/space.entity';
 import { UnavailableTime } from '../../spaces/entities/unavailable-time.entity';
-import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
-import { AvailableTimesQueryDto } from '../dto/available-times-query.dto';
+import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
 import { UpdateReservationDto } from '../dto/update-reservation.dto';
@@ -590,7 +589,7 @@ export class ReservationsService {
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
+			where: { userId, workspaceId, isAdmin: true },
 		});
 
 		if (!workspaceUser) {
@@ -603,7 +602,7 @@ export class ReservationsService {
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
+			where: { userId, workspaceId, isAdmin: true },
 		});
 
 		return !!workspaceUser;

@@ -11,7 +11,7 @@ import { InvitationHistory } from './invitation-history.entity';
 // import { Group } from '../../groups/entities/group.entity';
 import { WorkspaceInvitationCode } from './workspace-invitation-code.entity';
 import { WorkspaceUser } from './workspace-user.entity';
-// import { Space } from '../../spaces/entities/space.entity';
+import { Space } from '../../spaces/entities/space.entity';
 
 @Entity('workspace')
 export class Workspace {
@@ -56,6 +56,6 @@ export class Workspace {
 	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.workspace)
 	invitationHistories: InvitationHistory[];
 
-	// @OneToMany(() => Space, (space) => space.workspace)
-	// spaces: Space[];
+	@OneToMany(() => Space, (space) => space.workspace)
+	spaces: Space[];
 }

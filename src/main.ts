@@ -8,6 +8,22 @@ async function bootstrap() {
 	try {
 		const app = await NestFactory.create(AppModule);
 
+		// CORS 설정 추가
+		app.enableCors({
+			origin: ['http://localhost:3000', 'http://localhost:3001'], // 프론트엔드 URL
+			credentials: true, // 쿠키를 포함한 요청 허용
+			methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+			allowedHeaders: [
+				'Content-Type',
+				'Authorization',
+				'Accept',
+				'Origin',
+				'X-Requested-With',
+				'Access-Control-Request-Method',
+				'Access-Control-Request-Headers',
+			],
+		});
+
 		// 쿠키 파서 미들웨어 등록
 		app.use(cookieParser());
 

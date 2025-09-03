@@ -79,7 +79,7 @@ export class Workspace {
 	@OneToMany(() => InvitationHistory, (invitationHistory) => invitationHistory.workspace)
 	invitationHistories: InvitationHistory[];
 
-	@OneToMany(() => Space, (space) => space.workspace)
+	@OneToMany(() => Space, (space) => space.workspaceId)
 	spaces: Space[];
 	// Virtual properties
 	@ApiProperty({ description: '총 멤버 수' })

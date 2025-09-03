@@ -54,7 +54,11 @@ export class UpdateSpaceDto {
 	@IsBoolean()
 	requiresApproval?: boolean;
 
-	@ApiProperty({ description: 'Available amenities', example: ['tv', 'projector', 'whiteboard'], required: false })
+	@ApiProperty({
+		description: 'Available amenities',
+		example: ['tv', 'projector', 'whiteboard'],
+		required: false,
+	})
 	@IsOptional()
 	@IsArray()
 	@IsString({ each: true, message: '시설명은 문자열이어야 합니다.' })

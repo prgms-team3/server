@@ -40,7 +40,6 @@ export class SpacesService {
 
 		const savedSpace = await this.spaceRepository.save(space);
 
-
 		return this.findOne(savedSpace.id, userId);
 	}
 
@@ -90,11 +89,7 @@ export class SpacesService {
 	async findOne(id: number, userId: number): Promise<Space> {
 		const space = await this.spaceRepository.findOne({
 			where: { id },
-			relations: [
-				'workspace',
-				'images',
-				'unavailableTimes',
-			],
+			relations: ['workspace', 'images', 'unavailableTimes'],
 		});
 
 		if (!space) {
@@ -121,7 +116,6 @@ export class SpacesService {
 
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, space.workspaceId);
-
 
 		Object.assign(space, updateSpaceDto);
 		await this.spaceRepository.save(space);
@@ -273,7 +267,6 @@ export class SpacesService {
 
 		await this.unavailableTimeRepository.remove(unavailableTime);
 	}
-
 
 	/**
 	 * 사용자가 워크스페이스에 속해있는지 확인

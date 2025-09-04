@@ -12,6 +12,7 @@ import { InvitationHistory, InvitationStatus } from '../entities/invitation-hist
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
+import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -48,13 +49,40 @@ export class WorkspacesService {
 	/**
 	 * 워크스페이스 목록 조회 (사용자가 속한)
 	 */
-	async findUserWorkspaces(userId: number): Promise<Workspace[]> {
-		const workspaceUsers = await this.workspaceUserRepository.find({
-			where: { userId },
-			relations: ['workspace'],
-		});
+	async findUserWorkspaces(
+		query: WorkspaceQueryDto,
+		userId: number,
+	): Promise<{ workspaces: Workspace[]; total: number }> {
+		// const workspaceUsers = await this.workspaceUserRepository.find({
+		// 	where: { userId },
+		// 	relations: ['workspace'],
+		// });
 
-		return workspaceUsers.map((wu) => wu.workspace).filter((w) => w.isActive);
+		const { page = 1, limit = 10, search } = query;
+		const skip = (page - 1) * limit;
+
+		const queryBuilder = this.workspaceRepository
+			.createQueryBuilder('workspace')
+			.leftJoinAndSelect('workspace.workspaceUsers', 'workspaceUsers')
+			.where('workspaceUsers.userId = :userId', { userId })
+			.andWhere('workspace.isActive = :isActive', { isActive: true })
+			.andWhere('workspace.deleted = :deleted', { deleted: false });
+
+		if (search) {
+			queryBuilder.andWhere('(workspace.name LIKE :search OR workspace.description LIKE :search)', {
+				search: `%${search}%`,
+			});
+		}
+
+		const total = await queryBuilder.getCount();
+		const workspaces = await queryBuilder
+			.orderBy('workspace.createdAt', 'DESC')
+			.skip(skip)
+			.take(limit)
+			.getMany();
+
+		// return workspaceUsers.map((wu) => wu.workspace).filter((w) => w.isActive);
+		return { workspaces, total };
 	}
 
 	/**
@@ -152,6 +180,7 @@ export class WorkspacesService {
 			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
 		}
 
+		workspace.isActive = false;
 		workspace.deleted = true;
 		await this.workspaceRepository.save(workspace);
 	}

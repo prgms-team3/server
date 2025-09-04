@@ -47,6 +47,17 @@ export class WorkspacesController {
 		return this.workspacesService.create(createWorkspaceDto, req.user.sub); // 👈 req.user.sub 사용
 	}
 
+	@Get('')
+	@ApiOperation({ summary: '모든 워크스페이스 목록 조회' })
+	@ApiResponse({
+		status: 200,
+		description: '워크스페이스 목록이 성공적으로 조회되었습니다.',
+		type: [Workspace],
+	})
+	async findAll(): Promise<Workspace[]> {
+		return this.workspacesService.findAll();
+	}
+
 	@Get('my')
 	@ApiOperation({ summary: '내가 속한 워크스페이스 목록 조회' })
 	@ApiResponse({

@@ -34,11 +34,11 @@ export class WorkspacesService {
 		const workspace = this.workspaceRepository.create(createWorkspaceDto);
 		const savedWorkspace = await this.workspaceRepository.save(workspace);
 
-		// 생성자를 ADMIN로 추가
+		// 생성자를 SUPER_ADMIN로 추가
 		const workspaceUser = this.workspaceUserRepository.create({
 			workspaceId: savedWorkspace.id,
 			userId,
-			role: WorkspaceRole.ADMIN,
+			role: WorkspaceRole.SUPER_ADMIN,
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
 
@@ -64,6 +64,13 @@ export class WorkspacesService {
 		return result as any;
 	}
 
+	async findAll(): Promise<Workspace[]> {
+		const workspaces = await this.workspaceRepository.find({
+			where: { isActive: true },
+		});
+
+		return workspaces;
+	}
 	/**
 	 * 워크스페이스 목록 조회 (사용자가 속한)
 	 */
@@ -77,11 +84,11 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스 상세 조회
+	 * 워크스페이스 상세 조회 (개선된 버전)
 	 */
 	async findOne(id: number, userId: number): Promise<Workspace> {
-		// 사용자가 워크스페이스에 속해있는지 확인
-		await this.checkUserInWorkspace(userId, id);
+		// 권한 확인하면서 사용자 역할 정보도 가져옴
+		const userInfo = await this.checkPermission(userId, id, WorkspaceRole.MEMBER);
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
@@ -98,7 +105,11 @@ export class WorkspacesService {
 	/**
 	 * 워크스페이스 수정
 	 */
-	async update(id: number, updateWorkspaceDto: UpdateWorkspaceDto, userId: number): Promise<Workspace> {
+	async update(
+		id: number,
+		updateWorkspaceDto: UpdateWorkspaceDto,
+		userId: number,
+	): Promise<Workspace> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, id);
 
@@ -175,7 +186,11 @@ export class WorkspacesService {
 	/**
 	 * 워크스페이스에 사용자 추가
 	 */
-	async addUser(workspaceId: number, addUserDto: AddUserToWorkspaceDto, adminUserId: number): Promise<void> {
+	async addUser(
+		workspaceId: number,
+		addUserDto: AddUserToWorkspaceDto,
+		adminUserId: number,
+	): Promise<void> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(adminUserId, workspaceId);
 
@@ -198,21 +213,29 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스에서 사용자 제거
+	 * 워크스페이스에서 사용자 제거 (개선된 버전)
 	 */
 	async removeUser(workspaceId: number, userId: number, adminUserId: number): Promise<void> {
-		// 관리자 권한 확인
-		await this.checkUserIsAdmin(adminUserId, workspaceId);
+		// 관리자 권한 확인하면서 관리자 정보도 가져옴
+		const adminUser = await this.checkPermission(adminUserId, workspaceId, WorkspaceRole.ADMIN);
 
-		const workspaceUser = await this.workspaceUserRepository.findOne({
+		const targetUser = await this.workspaceUserRepository.findOne({
 			where: { workspaceId, userId },
 		});
 
-		if (!workspaceUser) {
+		if (!targetUser) {
 			throw new AppException(ErrorCode.USER_NOT_FOUND);
 		}
 
-		await this.workspaceUserRepository.remove(workspaceUser);
+		// SUPER_ADMIN만 다른 ADMIN을 제거할 수 있음
+		if (
+			targetUser.role === WorkspaceRole.ADMIN &&
+			adminUser.role !== WorkspaceRole.SUPER_ADMIN
+		) {
+			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
+		}
+
+		await this.workspaceUserRepository.remove(targetUser);
 	}
 
 	/**
@@ -231,7 +254,10 @@ export class WorkspacesService {
 	/**
 	 * 초대 코드 생성
 	 */
-	async createInvitationCode(workspaceId: number, userId: number): Promise<WorkspaceInvitationCode> {
+	async createInvitationCode(
+		workspaceId: number,
+		userId: number,
+	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
@@ -257,7 +283,10 @@ export class WorkspacesService {
 	/**
 	 * 초대 코드 목록 조회
 	 */
-	async getInvitationCodes(workspaceId: number, userId: number): Promise<WorkspaceInvitationCode[]> {
+	async getInvitationCodes(
+		workspaceId: number,
+		userId: number,
+	): Promise<WorkspaceInvitationCode[]> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
@@ -270,7 +299,10 @@ export class WorkspacesService {
 	/**
 	 * 초대 코드 갱신(수정)
 	 */
-	async regenerateInvitationCode(workspaceId: number, userId: number): Promise<WorkspaceInvitationCode> {
+	async regenerateInvitationCode(
+		workspaceId: number,
+		userId: number,
+	): Promise<WorkspaceInvitationCode> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
@@ -318,7 +350,10 @@ export class WorkspacesService {
 	/**
 	 * 초대 코드 사용
 	 */
-	async useInvitationCode(useInvitationCodeDto: UseInvitationCodeDto, userId: number): Promise<Workspace> {
+	async useInvitationCode(
+		useInvitationCodeDto: UseInvitationCodeDto,
+		userId: number,
+	): Promise<Workspace> {
 		const invitationCode = await this.invitationCodeRepository.findOne({
 			where: { code: useInvitationCodeDto.code, isActive: true },
 			relations: ['workspace'],
@@ -361,40 +396,83 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 사용자가 워크스페이스에 속해있는지 확인
+	 * 사용자의 워크스페이스 권한 정보 조회
 	 */
-	private async checkUserInWorkspace(userId: number, workspaceId: number): Promise<void> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
+	private async getUserWorkspaceRole(
+		userId: number,
+		workspaceId: number,
+	): Promise<WorkspaceUser | null> {
+		return this.workspaceUserRepository.findOne({
 			where: { userId, workspaceId },
 		});
+	}
+
+	/**
+	 * 역할 레벨 반환
+	 */
+	private getRoleLevel(role: WorkspaceRole): number {
+		const levels = { MEMBER: 1, ADMIN: 2, SUPER_ADMIN: 3 };
+		return levels[role] || 0;
+	}
+
+	/**
+	 * 권한 확인 (통합 메서드)
+	 */
+	private async checkPermission(
+		userId: number,
+		workspaceId: number,
+		requiredRole: WorkspaceRole,
+	): Promise<WorkspaceUser> {
+		const workspaceUser = await this.getUserWorkspaceRole(userId, workspaceId);
 
 		if (!workspaceUser) {
 			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
 		}
+
+		const userLevel = this.getRoleLevel(workspaceUser.role);
+		const requiredLevel = this.getRoleLevel(requiredRole);
+
+		if (userLevel < requiredLevel) {
+			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
+		}
+
+		return workspaceUser;
 	}
 
 	/**
-	 * 특정 역할 이상인지 확인
+	 * 사용자가 워크스페이스에 속해있는지 확인
 	 */
-	async hasMinimumRole(userId: number, workspaceId: number, minimumRole: WorkspaceRole): Promise<boolean> {
-		const userRole = await this.getUserRole(userId, workspaceId);
-		if (!userRole) return false;
-
-		const roleHierarchy = {
-			[WorkspaceRole.MEMBER]: 0,
-			[WorkspaceRole.ADMIN]: 1,
-		};
-
-		return roleHierarchy[userRole] >= roleHierarchy[minimumRole];
+	private async checkUserInWorkspace(userId: number, workspaceId: number): Promise<void> {
+		await this.checkPermission(userId, workspaceId, WorkspaceRole.MEMBER);
 	}
 
 	/**
-	 * 사용자가 ADMIN 권한이 있는지 확인
+	 * 사용자가 ADMIN 이상 권한이 있는지 확인
 	 */
 	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
-		const hasPermission = await this.hasMinimumRole(userId, workspaceId, WorkspaceRole.ADMIN);
-		if (!hasPermission) {
-			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
+		await this.checkPermission(userId, workspaceId, WorkspaceRole.ADMIN);
+	}
+
+	/**
+	 * 사용자가 SUPER_ADMIN 권한이 있는지 확인
+	 */
+	private async checkUserIsSuperAdmin(userId: number, workspaceId: number): Promise<void> {
+		await this.checkPermission(userId, workspaceId, WorkspaceRole.SUPER_ADMIN);
+	}
+
+	/**
+	 * 특정 역할 이상인지 확인 (public 메서드)
+	 */
+	async hasMinimumRole(
+		userId: number,
+		workspaceId: number,
+		minimumRole: WorkspaceRole,
+	): Promise<boolean> {
+		try {
+			await this.checkPermission(userId, workspaceId, minimumRole);
+			return true;
+		} catch {
+			return false;
 		}
 	}
 
@@ -403,15 +481,5 @@ export class WorkspacesService {
 	 */
 	private generateInvitationCode(): string {
 		return crypto.randomBytes(8).toString('hex').toUpperCase();
-	}
-
-	/**
-	 * 사용자 역할 확인 헬퍼 메서드
-	 */
-	async getUserRole(userId: number, workspaceId: number): Promise<WorkspaceRole | null> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId },
-		});
-		return workspaceUser?.role || null;
 	}
 }

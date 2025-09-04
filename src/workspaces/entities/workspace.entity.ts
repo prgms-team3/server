@@ -32,9 +32,9 @@ export class Workspace {
 	@Column({ nullable: true, type: 'text' })
 	description?: string;
 
-	@ApiProperty({ description: 'Workspace owner name', example: 'Son' })
-	@Column({ name: 'owner_name', type: 'varchar', length: 100 })
-	ownerName?: string;
+	@ApiProperty({ description: 'Workspace super admin name', example: 'Son' })
+	@Column({ name: 'super_admin_name', type: 'varchar', length: 100 })
+	superAdminName: string;
 
 	@ApiProperty({ description: 'Workspace image URL' })
 	@Column({ name: 'image_url', type: 'varchar', length: 255, nullable: true })

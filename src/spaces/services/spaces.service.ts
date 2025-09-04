@@ -60,7 +60,8 @@ export class SpacesService {
 			.createQueryBuilder('space')
 			.leftJoinAndSelect('space.images', 'images')
 			.where('space.workspaceId = :workspaceId', { workspaceId })
-			.andWhere('space.isActive = :isActive', { isActive: true });
+			.andWhere('space.isActive = :isActive', { isActive: true })
+			.andWhere('space.deleted = :deleted', { deleted: false });
 
 		if (search) {
 			queryBuilder.andWhere('(space.name LIKE :search OR space.description LIKE :search)', {
@@ -175,6 +176,7 @@ export class SpacesService {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, space.workspaceId);
 
+		space.isActive = false;
 		space.deleted = true;
 		await this.spaceRepository.save(space);
 	}
@@ -192,6 +194,7 @@ export class SpacesService {
 			'speaker',
 			'wifi',
 			'parking',
+			'board'
 		];
 	}
 

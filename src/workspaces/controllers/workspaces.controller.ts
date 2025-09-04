@@ -8,6 +8,7 @@ import {
 	Patch,
 	Post,
 	Put,
+	Query,
 	Request,
 	UseGuards,
 } from '@nestjs/common';
@@ -24,6 +25,8 @@ import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
 import { WorkspacesService } from '../services/workspaces.service';
+import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
+import { findMyWorkspacesResponseDto } from '../dto/workspace-response.dto';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -63,10 +66,13 @@ export class WorkspacesController {
 	@ApiResponse({
 		status: 200,
 		description: '워크스페이스 목록이 성공적으로 조회되었습니다.',
-		type: [Workspace],
+		type: findMyWorkspacesResponseDto,
 	})
-	async findMyWorkspaces(@Request() req: any): Promise<Workspace[]> {
-		return this.workspacesService.findUserWorkspaces(req.user.sub);
+	async findMyWorkspaces(
+		@Query() query: WorkspaceQueryDto,
+		@Request() req: any,
+	): Promise<{ workspaces: Workspace[]; total: number }> {
+		return this.workspacesService.findUserWorkspaces(query, req.user.sub);
 	}
 
 	@Get(':id')

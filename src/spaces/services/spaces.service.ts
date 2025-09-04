@@ -194,7 +194,7 @@ export class SpacesService {
 			'speaker',
 			'wifi',
 			'parking',
-			'board'
+			'board',
 		];
 	}
 

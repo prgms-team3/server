@@ -28,12 +28,20 @@ export class ReservationQueryDto {
 	@IsEnum(ReservationStatus, { message: '유효한 예약 상태여야 합니다.' })
 	status?: ReservationStatus;
 
-	@ApiProperty({ description: 'Filter by start date', example: '2023-01-01T00:00:00+09:00', required: false })
+	@ApiProperty({
+		description: 'Filter by start date',
+		example: '2023-01-01T00:00:00+09:00',
+		required: false,
+	})
 	@IsOptional()
 	@IsDateString({}, { message: '시작 날짜는 유효한 날짜 형식이어야 합니다.' })
 	startDate?: string;
 
-	@ApiProperty({ description: 'Filter by end date', example: '2023-01-31T23:59:59+09:00', required: false })
+	@ApiProperty({
+		description: 'Filter by end date',
+		example: '2023-01-31T23:59:59+09:00',
+		required: false,
+	})
 	@IsOptional()
 	@IsDateString({}, { message: '종료 날짜는 유효한 날짜 형식이어야 합니다.' })
 	endDate?: string;

@@ -9,7 +9,10 @@ import { WorkspaceUser } from '../workspaces/entities/workspace-user.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-	imports: [TypeOrmModule.forFeature([Space, SpaceImage, UnavailableTime, WorkspaceUser]), AuthModule],
+	imports: [
+		TypeOrmModule.forFeature([Space, SpaceImage, UnavailableTime, WorkspaceUser]),
+		AuthModule,
+	],
 	controllers: [SpacesController, AmenitiesController],
 	providers: [SpacesService],
 	exports: [SpacesService],

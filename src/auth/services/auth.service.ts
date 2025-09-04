@@ -51,7 +51,8 @@ export class AuthService {
 
 		if (provider === 'google') {
 			const GOOGLE_CLIENT_ID = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
-			const GOOGLE_REDIRECT_URI = this.configService.getOrThrow<string>('GOOGLE_REDIRECT_URI');
+			const GOOGLE_REDIRECT_URI =
+				this.configService.getOrThrow<string>('GOOGLE_REDIRECT_URI');
 
 			// response_type을 code로 변경하고 scope 수정
 			const scope = encodeURIComponent('openid email profile');
@@ -68,12 +69,16 @@ export class AuthService {
 			const kakaoUser: KakaoUser = await this.getKakaoUserInfo(accessToken);
 
 			if (!kakaoUser.kakao_account?.email) {
-				throw new BadRequestException('카카오 계정에서 이메일 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.');
+				throw new BadRequestException(
+					'카카오 계정에서 이메일 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.',
+				);
 			}
 
 			const nickname = kakaoUser.kakao_account?.profile?.nickname;
 			if (!nickname) {
-				throw new BadRequestException('카카오 계정에서 닉네임 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.');
+				throw new BadRequestException(
+					'카카오 계정에서 닉네임 정보를 가져올 수 없습니다. 동의 항목을 확인해주세요.',
+				);
 			}
 
 			let user = await this.usersService.findByProviderId(kakaoUser.id.toString(), 'kakao');
@@ -106,7 +111,9 @@ export class AuthService {
 			const googleUser: GoogleUser = await this.getGoogleUserInfo(accessToken);
 
 			if (!googleUser.email || !googleUser.email_verified) {
-				throw new BadRequestException('구글 계정에서 인증된 이메일 정보를 가져올 수 없습니다.');
+				throw new BadRequestException(
+					'구글 계정에서 인증된 이메일 정보를 가져올 수 없습니다.',
+				);
 			}
 
 			if (!googleUser.name) {
@@ -242,7 +249,9 @@ export class AuthService {
 	}
 
 	private getRefreshTokenExpiryTime(): number {
-		const expirationTime = this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRATION_TIME');
+		const expirationTime = this.configService.getOrThrow<string>(
+			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+		);
 		return parseJwtExpiration(expirationTime);
 	}
 
@@ -257,7 +266,10 @@ export class AuthService {
 				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
 			});
 
-			const user = await this.usersService.getUserIfRefreshTokenMatches(refreshToken, payload.sub);
+			const user = await this.usersService.getUserIfRefreshTokenMatches(
+				refreshToken,
+				payload.sub,
+			);
 			if (!user) {
 				throw new UnauthorizedException('Invalid refresh token');
 			}

@@ -12,7 +12,10 @@ import { WorkspaceUser } from '../workspaces/entities/workspace-user.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-	imports: [TypeOrmModule.forFeature([Reservation, Space, UnavailableTime, WorkspaceUser]), AuthModule],
+	imports: [
+		TypeOrmModule.forFeature([Reservation, Space, UnavailableTime, WorkspaceUser]),
+		AuthModule,
+	],
 	controllers: [ReservationsController, WorkspaceReservationsController],
 	providers: [ReservationsService],
 	exports: [ReservationsService],

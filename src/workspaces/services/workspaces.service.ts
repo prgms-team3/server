@@ -9,11 +9,11 @@ import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
+import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
 import { InvitationHistory, InvitationStatus } from '../entities/invitation-history.entity';
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
-import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -75,13 +75,6 @@ export class WorkspacesService {
 		return result as any;
 	}
 
-	async findAll(): Promise<Workspace[]> {
-		const workspaces = await this.workspaceRepository.find({
-			where: { isActive: true },
-		});
-
-		return workspaces;
-	}
 	/**
 	 * 워크스페이스 목록 조회 (사용자가 속한)
 	 */
@@ -105,9 +98,12 @@ export class WorkspacesService {
 			.andWhere('workspace.deleted = :deleted', { deleted: false });
 
 		if (search) {
-			queryBuilder.andWhere('(workspace.name LIKE :search OR workspace.description LIKE :search)', {
-				search: `%${search}%`,
-			});
+			queryBuilder.andWhere(
+				'(workspace.name LIKE :search OR workspace.description LIKE :search)',
+				{
+					search: `%${search}%`,
+				},
+			);
 		}
 
 		const total = await queryBuilder.getCount();
@@ -218,7 +214,6 @@ export class WorkspacesService {
 
 		workspace.isActive = false;
 		workspace.deleted = true;
-		workspace.isActive = false; // 삭제 시 비활성화도 함께
 		await this.workspaceRepository.save(workspace);
 	}
 

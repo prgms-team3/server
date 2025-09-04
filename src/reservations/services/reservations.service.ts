@@ -289,14 +289,11 @@ export class ReservationsService {
 				throw new AppException(ErrorCode.RESERVATION_ACCESS_DENIED);
 			}
 
-			// 승인된 예약이나 완료된 예약은 수정 불가
-			if (
-				reservation.status === ReservationStatus.APPROVED ||
-				reservation.status === ReservationStatus.COMPLETED
-			) {
+			// 완료된 예약은 수정 불가
+			if (reservation.status === ReservationStatus.COMPLETED) {
 				throw new AppException({
 					code: 'RESERVATION_CANNOT_BE_MODIFIED',
-					message: '승인되었거나 완료된 예약은 수정할 수 없습니다.',
+					message: '완료된 예약은 수정할 수 없습니다.',
 					status: 400,
 				});
 			}

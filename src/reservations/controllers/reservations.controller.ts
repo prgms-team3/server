@@ -92,7 +92,7 @@ export class ReservationsController {
 	})
 	@ApiResponse({ status: 404, description: '예약을 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '예약에 접근할 권한이 없습니다.' })
-	@ApiResponse({ status: 400, description: '승인되었거나 완료된 예약은 수정할 수 없습니다.' })
+	@ApiResponse({ status: 400, description: '완료된 예약은 수정할 수 없습니다.' })
 	@ApiResponse({ status: 400, description: '시작 시간은 종료 시간보다 이전이어야 합니다.' })
 	@ApiResponse({ status: 409, description: '해당 시간에 이미 예약이 있습니다.' })
 	@ApiResponse({ status: 400, description: '해당 시간에 공간을 사용할 수 없습니다.' })

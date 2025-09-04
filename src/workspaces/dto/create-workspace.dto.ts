@@ -16,4 +16,20 @@ export class CreateWorkspaceDto {
 	@IsOptional()
 	@IsString()
 	description?: string;
+
+	@ApiProperty({ description: 'Workspace owner name', example: 'Son', required: false })
+	@IsOptional()
+	@IsString()
+	@MaxLength(100, { message: '워크스페이스 소유자 이름은 100자를 초과할 수 없습니다.' })
+	ownerName?: string;
+
+	@ApiProperty({
+		description: 'Workspace image URL',
+		example: 'https://example.com/image.png',
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	@MaxLength(255, { message: '워크스페이스 이미지 URL은 255자를 초과할 수 없습니다.' })
+	imageUrl?: string;
 }

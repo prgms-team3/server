@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { apigateway } from 'googleapis/build/src/apis/apigateway';
 import {
 	Column,
 	CreateDateColumn,
@@ -30,6 +31,14 @@ export class Workspace {
 	})
 	@Column({ nullable: true, type: 'text' })
 	description?: string;
+
+	@ApiProperty({ description: 'Workspace owner name', example: 'Son' })
+	@Column({ name: 'owner_name', type: 'varchar', length: 100 })
+	ownerName?: string;
+
+	@ApiProperty({ description: 'Workspace image URL' })
+	@Column({ name: 'image_url', type: 'varchar', length: 255, nullable: true })
+	imageUrl?: string;
 
 	@ApiProperty({
 		description: 'Creation date',

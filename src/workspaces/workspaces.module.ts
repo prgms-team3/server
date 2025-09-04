@@ -11,7 +11,12 @@ import { WorkspacesService } from './services/workspaces.service';
 
 @Module({
 	imports: [
-		TypeOrmModule.forFeature([Workspace, WorkspaceUser, WorkspaceInvitationCode, InvitationHistory]),
+		TypeOrmModule.forFeature([
+			Workspace,
+			WorkspaceUser,
+			WorkspaceInvitationCode,
+			InvitationHistory,
+		]),
 		AuthModule, // 추가
 		UsersModule, // 추가
 	],

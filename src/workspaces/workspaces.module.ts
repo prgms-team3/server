@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module'; // 추가
+import { UsersModule } from '../users/users.module';
 import { WorkspacesController } from './controllers/workspaces.controller';
 import { InvitationHistory } from './entities/invitation-history.entity';
 import { Workspace } from './entities/workspace.entity';
@@ -17,6 +18,7 @@ import { WorkspacesService } from './services/workspaces.service';
 			InvitationHistory,
 		]),
 		AuthModule, // 추가
+		UsersModule, // 추가
 	],
 	controllers: [WorkspacesController],
 	providers: [WorkspacesService],

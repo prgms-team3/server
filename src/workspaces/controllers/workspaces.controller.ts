@@ -22,7 +22,7 @@ import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
 import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
-import { findMyWorkspacesResponseDto, WorkspaceCreateResponseDto } from '../dto/workspace-response.dto';
+import { findMyWorkspacesResponseDto, findUserWorkspacesResponseDto, WorkspaceCreateResponseDto } from '../dto/workspace-response.dto';
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
@@ -59,12 +59,12 @@ export class WorkspacesController {
 	@ApiResponse({
 		status: 200,
 		description: '워크스페이스 목록이 성공적으로 조회되었습니다.',
-		type: findMyWorkspacesResponseDto,
+		type: findUserWorkspacesResponseDto,
 	})
 	async findMyWorkspaces(
 		@Query() query: WorkspaceQueryDto,
 		@Request() req: any,
-	): Promise<{ workspaces: Workspace[]; total: number }> {
+	): Promise<findUserWorkspacesResponseDto> {
 		return this.workspacesService.findUserWorkspaces(query, req.user.sub);
 	}
 

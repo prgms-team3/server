@@ -222,44 +222,38 @@ export class AuthController {
 	}
 
 	@Get(':provider/callback')
-	@ApiOperation({ summary: '소셜 로그인 콜백' })
-	@ApiResponse({
-		status: 200,
-		description: '로그인 성공',
-		schema: {
-			properties: {
-				accessToken: { type: 'string' },
-				message: { type: 'string' },
-			},
-		},
+	@ApiOperation({ summary: '소셜 로그인 콜백 (프론트엔드로 리다이렉트)' })
+	@ApiParam({
+		name: 'provider',
+		description: '소셜 로그인 제공자',
+		enum: ['kakao', 'google'],
 	})
 	async socialLoginCallback(
 		@Param('provider') provider: string,
 		@Query('code') code: string,
 		@Res() res: Response,
 	) {
+		const clientURL = this.configService.getOrThrow<string>('CLIENT_URL');
+
 		try {
-			const tokens = await this.authService.socialLogin(provider, code);
+			const tokenResponse = await this.authService.socialLogin(provider, code);
 
-			// 리프레시 토큰을 HttpOnly 쿠키에 설정
+			// 리프레시 토큰을 쿠키에 설정
 			const isProduction = this.configService.get('NODE_ENV') === 'production';
-			res.cookie('refreshToken', tokens.refreshToken, {
+			res.cookie('refreshToken', tokenResponse.refreshToken, {
 				httpOnly: true,
-				secure: isProduction, // HTTPS에서만 전송 (프로덕션)
-				sameSite: isProduction ? 'none' : 'lax', // CORS 환경에서는 'none', 로컬에서는 'lax'
-				maxAge: tokens.refreshTokenExpiry, // 밀리초 단위
+				secure: isProduction,
+				sameSite: isProduction ? 'none' : 'lax',
+				maxAge: tokenResponse.refreshTokenExpiry,
 			});
 
-			// 액세스 토큰만 응답 본문에 포함
-			return res.json({
-				accessToken: tokens.accessToken,
-				message: '로그인 성공',
-			});
+			// 성공 시: 홈URL/callback?accessToken=... 로 리다이렉트
+			const cleanUrl = clientURL.replace(/\/$/, ''); // 끝의 슬래시 제거
+			const successUrl = `${cleanUrl}/callback?accessToken=${tokenResponse.accessToken}`;
+			return res.redirect(successUrl);
 		} catch (error) {
-			return res.status(400).json({
-				message: '로그인에 실패했습니다.',
-				error: error.message,
-			});
+			// 에러 시: 그냥 홈URL로 리다이렉트
+			return res.redirect(clientURL);
 		}
 	}
 }

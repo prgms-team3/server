@@ -42,19 +42,31 @@ export class AuthService {
 
 	getSocialLoginUrl(provider: string): { url: string } {
 		if (provider === 'kakao') {
-			const KAKAO_CLIENT_ID = this.configService.getOrThrow<string>('KAKAO_CLIENT_ID');
-			const KAKAO_REDIRECT_URI = this.configService.getOrThrow<string>('KAKAO_REDIRECT_URI');
+			const KAKAO_CLIENT_ID = this.configService.get<string>('KAKAO_CLIENT_ID');
+			const KAKAO_REDIRECT_URI = this.configService.get<string>('KAKAO_REDIRECT_URI');
+
+			if (!KAKAO_CLIENT_ID) {
+				throw new BadRequestException('카카오 클라이언트 ID가 설정되지 않았습니다.');
+			}
+			if (!KAKAO_REDIRECT_URI) {
+				throw new BadRequestException('카카오 리다이렉트 URI가 설정되지 않았습니다.');
+			}
 
 			const url = `https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_CLIENT_ID}&redirect_uri=${KAKAO_REDIRECT_URI}&response_type=code`;
 			return { url };
 		}
 
 		if (provider === 'google') {
-			const GOOGLE_CLIENT_ID = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
-			const GOOGLE_REDIRECT_URI =
-				this.configService.getOrThrow<string>('GOOGLE_REDIRECT_URI');
+			const GOOGLE_CLIENT_ID = this.configService.get<string>('GOOGLE_CLIENT_ID');
+			const GOOGLE_REDIRECT_URI = this.configService.get<string>('GOOGLE_REDIRECT_URI');
 
-			// response_type을 code로 변경하고 scope 수정
+			if (!GOOGLE_CLIENT_ID) {
+				throw new BadRequestException('구글 클라이언트 ID가 설정되지 않았습니다.');
+			}
+			if (!GOOGLE_REDIRECT_URI) {
+				throw new BadRequestException('구글 리다이렉트 URI가 설정되지 않았습니다.');
+			}
+
 			const scope = encodeURIComponent('openid email profile');
 			const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(GOOGLE_REDIRECT_URI)}&response_type=code&scope=${scope}&access_type=offline`;
 			return { url };
@@ -149,8 +161,15 @@ export class AuthService {
 	}
 
 	private async getKakaoAccessToken(code: string): Promise<string> {
-		const KAKAO_CLIENT_ID = this.configService.getOrThrow<string>('KAKAO_CLIENT_ID');
-		const KAKAO_REDIRECT_URI = this.configService.getOrThrow<string>('KAKAO_REDIRECT_URI');
+		const KAKAO_CLIENT_ID = this.configService.get<string>('KAKAO_CLIENT_ID');
+		const KAKAO_REDIRECT_URI = this.configService.get<string>('KAKAO_REDIRECT_URI');
+
+		if (!KAKAO_CLIENT_ID) {
+			throw new BadRequestException('카카오 클라이언트 ID가 설정되지 않았습니다.');
+		}
+		if (!KAKAO_REDIRECT_URI) {
+			throw new BadRequestException('카카오 리다이렉트 URI가 설정되지 않았습니다.');
+		}
 
 		const url = 'https://kauth.kakao.com/oauth/token';
 		const headers = {
@@ -184,16 +203,43 @@ export class AuthService {
 
 		try {
 			const response = await firstValueFrom(this.httpService.get(url, { headers }));
-			return response.data;
-		} catch {
+			const userData = response.data;
+
+			// 응답 데이터 유효성 검증
+			if (!userData || typeof userData.id !== 'number') {
+				throw new BadRequestException(
+					'카카오 API에서 올바르지 않은 사용자 정보를 반환했습니다.',
+				);
+			}
+
+			return userData;
+		} catch (error) {
+			console.error('Kakao user info request failed:', error.response?.data || error.message);
+
+			if (error.response?.status === 401) {
+				throw new UnauthorizedException(
+					'카카오 액세스 토큰이 만료되었거나 유효하지 않습니다.',
+				);
+			}
+
 			throw new UnauthorizedException('카카오 사용자 정보 조회에 실패했습니다.');
 		}
 	}
 
 	private getGoogleOAuth2Client(): Auth.OAuth2Client {
-		const GOOGLE_CLIENT_ID = this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID');
-		const GOOGLE_CLIENT_SECRET = this.configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET');
-		const GOOGLE_REDIRECT_URI = this.configService.getOrThrow<string>('GOOGLE_REDIRECT_URI');
+		const GOOGLE_CLIENT_ID = this.configService.get<string>('GOOGLE_CLIENT_ID');
+		const GOOGLE_CLIENT_SECRET = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+		const GOOGLE_REDIRECT_URI = this.configService.get<string>('GOOGLE_REDIRECT_URI');
+
+		if (!GOOGLE_CLIENT_ID) {
+			throw new BadRequestException('구글 클라이언트 ID가 설정되지 않았습니다.');
+		}
+		if (!GOOGLE_CLIENT_SECRET) {
+			throw new BadRequestException('구글 클라이언트 시크릿이 설정되지 않았습니다.');
+		}
+		if (!GOOGLE_REDIRECT_URI) {
+			throw new BadRequestException('구글 리다이렉트 URI가 설정되지 않았습니다.');
+		}
 
 		return new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
 	}
@@ -231,27 +277,50 @@ export class AuthService {
 
 	//jwt
 	async getAccessToken(userId: number, email: string): Promise<string> {
+		const secret = this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET');
+		const expiresIn = this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION_TIME');
+
+		if (!secret) {
+			throw new BadRequestException('JWT 액세스 토큰 시크릿이 설정되지 않았습니다.');
+		}
+		if (!expiresIn) {
+			throw new BadRequestException('JWT 액세스 토큰 만료시간이 설정되지 않았습니다.');
+		}
+
 		const payload = { sub: userId, email };
 		const accessToken = await this.jwtService.signAsync(payload, {
-			secret: this.configService.getOrThrow<string>('JWT_ACCESS_TOKEN_SECRET'),
-			expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TOKEN_EXPIRATION_TIME'),
+			secret,
+			expiresIn,
 		});
 		return accessToken;
 	}
 
 	async getRefreshToken(userId: number, email: string): Promise<string> {
+		const secret = this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET');
+		const expiresIn = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION_TIME');
+
+		if (!secret) {
+			throw new BadRequestException('JWT 리프레시 토큰 시크릿이 설정되지 않았습니다.');
+		}
+		if (!expiresIn) {
+			throw new BadRequestException('JWT 리프레시 토큰 만료시간이 설정되지 않았습니다.');
+		}
+
 		const payload = { sub: userId, email };
 		const refreshToken = await this.jwtService.signAsync(payload, {
-			secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
-			expiresIn: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
+			secret,
+			expiresIn,
 		});
 		return refreshToken;
 	}
 
 	private getRefreshTokenExpiryTime(): number {
-		const expirationTime = this.configService.getOrThrow<string>(
-			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
-		);
+		const expirationTime = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION_TIME');
+
+		if (!expirationTime) {
+			throw new BadRequestException('JWT 리프레시 토큰 만료시간이 설정되지 않았습니다.');
+		}
+
 		return parseJwtExpiration(expirationTime);
 	}
 
@@ -261,10 +330,14 @@ export class AuthService {
 	}
 
 	async refreshTokenPair(refreshToken: string): Promise<TokenResponse> {
+		const secret = this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET');
+
+		if (!secret) {
+			throw new BadRequestException('JWT 리프레시 토큰 시크릿이 설정되지 않았습니다.');
+		}
+
 		try {
-			const payload = await this.jwtService.verifyAsync(refreshToken, {
-				secret: this.configService.getOrThrow<string>('JWT_REFRESH_TOKEN_SECRET'),
-			});
+			const payload = await this.jwtService.verifyAsync(refreshToken, { secret });
 
 			const user = await this.usersService.getUserIfRefreshTokenMatches(
 				refreshToken,
@@ -277,7 +350,6 @@ export class AuthService {
 			// 새로운 토큰들 발급
 			const newAccessToken = await this.getAccessToken(user.id, user.email);
 			const newRefreshToken = await this.getRefreshToken(user.id, user.email);
-			// 새로운 refresh token을 데이터베이스에 저장
 			await this.saveRefreshToken(newRefreshToken, user.id);
 
 			// 리프레시 토큰 만료 시간 계산

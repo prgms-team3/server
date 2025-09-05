@@ -18,3 +18,15 @@ export class WorkspaceCreateResponseDto {
 	invitationCode: string | null;
 }
 	
+export class findUserWorkspacesResponseDto {
+	@ApiProperty({ description: '초대 코드가 포함된 워크스페이스 목록' })
+	workspaces: WorkspaceWithActiveInvitationCode[];
+
+	@ApiProperty({ description: '전체 워크스페이스 수' })
+	total: number;
+}
+
+export type WorkspaceWithActiveInvitationCode = Workspace & {
+	activeInvitationCode: string | null;
+}
+	

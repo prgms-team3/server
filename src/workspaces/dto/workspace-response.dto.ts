@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
+import { WorkspaceRole } from '../entities/workspace-user.entity';
 
 export class findMyWorkspacesResponseDto {
 	@ApiProperty({ type: [Workspace], description: '워크스페이스 목록' })
@@ -28,5 +29,7 @@ export class findUserWorkspacesResponseDto {
 
 export type WorkspaceWithActiveInvitationCode = Workspace & {
 	activeInvitationCode: string | null;
+	userCount: number;
+	userRole?: WorkspaceRole;
 }
 	

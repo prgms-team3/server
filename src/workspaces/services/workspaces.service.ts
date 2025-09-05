@@ -205,10 +205,17 @@ export class WorkspacesService {
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true, deleted: false },
+			relations: ['invitationCodes'],
 		});
 
 		if (!workspace) {
 			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
+		}
+
+		const invitationCodeId = workspace.invitationCodes.find(code => code.isActive)?.id;
+
+		if (invitationCodeId) {
+			await this.deleteInvitationCode(invitationCodeId, userId);
 		}
 
 		workspace.isActive = false;

@@ -28,5 +28,6 @@ export class findUserWorkspacesResponseDto {
 
 export type WorkspaceWithActiveInvitationCode = Workspace & {
 	activeInvitationCode: string | null;
+	userCount: number;
 }
 	

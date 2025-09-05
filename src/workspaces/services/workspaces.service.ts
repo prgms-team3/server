@@ -106,9 +106,11 @@ export class WorkspacesService {
 		// 필요하다면 각 워크스페이스에 대해 활성화된 초대 코드만 별도로 처리
 		const workspacesWithActiveInvitationCodes = workspaces.map(workspace => {
 			const activeInvitationCode = workspace.invitationCodes.find(code => code.isActive);
+			const userCount = workspace.workspaceUsers.length; // 워크스페이스에 속한 유저 수 계산
 			return {
 				...workspace,
-				activeInvitationCode: activeInvitationCode?.code || null
+				activeInvitationCode: activeInvitationCode?.code || null,
+				userCount
 			};
 		});
 

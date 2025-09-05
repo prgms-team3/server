@@ -84,8 +84,23 @@ export class WorkspacesService {
 			.leftJoinAndSelect('workspace.workspaceUsers', 'workspaceUsers')
 			.leftJoinAndSelect('workspace.invitationCodes', 'invitationCodes')
 			.where('workspaceUsers.userId = :userId', { userId })
-			.andWhere('workspace.isActive = :isActive', { isActive: true })
 			.andWhere('workspace.deleted = :deleted', { deleted: false })
+			.andWhere(qb => {
+				// ADMIN 이상 권한을 가진 워크스페이스는 isActive 상관없이 조회
+				// MEMBER 권한만 있는 워크스페이스는 isActive가 true인 것만 조회
+				const subQuery = qb.subQuery()
+					.select('1')
+					.from('workspace_user', 'wu')
+					.where('wu.workspaceId = workspace.id')
+					.andWhere('wu.userId = :userId', { userId })
+					.andWhere('(wu.role = :adminRole OR wu.role = :superAdminRole)', {
+						adminRole: WorkspaceRole.ADMIN,
+						superAdminRole: WorkspaceRole.SUPER_ADMIN
+					})
+					.getQuery();
+
+				return `(workspace.isActive = true OR EXISTS ${subQuery})`;
+			})
 
 		if (search) {
 			queryBuilder.andWhere(
@@ -103,12 +118,20 @@ export class WorkspacesService {
 			.take(limit)
 			.getMany();
 
-		// 필요하다면 각 워크스페이스에 대해 활성화된 초대 코드만 별도로 처리
+		// 각 워크스페이스에 대해 활성화된 초대 코드와 사용자 역할 정보 처리
 		const workspacesWithActiveInvitationCodes = workspaces.map(workspace => {
 			const activeInvitationCode = workspace.invitationCodes.find(code => code.isActive);
+			const userCount = workspace.workspaceUsers.length; // 워크스페이스에 속한 유저 수 계산
+			
+			// 사용자의 해당 워크스페이스에서의 역할 확인
+			const userRole = workspace.workspaceUsers.find(wu => wu.userId === userId)?.role || WorkspaceRole.MEMBER;
+			const isAdmin = userRole === WorkspaceRole.ADMIN || userRole === WorkspaceRole.SUPER_ADMIN;
+			
 			return {
 				...workspace,
-				activeInvitationCode: activeInvitationCode?.code || null
+				activeInvitationCode: activeInvitationCode?.code || null,
+				userCount,
+				userRole // 사용자 역할 정보 추가
 			};
 		});
 
@@ -122,9 +145,16 @@ export class WorkspacesService {
 	async findOne(id: number, userId: number): Promise<Workspace> {
 		// 권한 확인하면서 사용자 역할 정보도 가져옴
 		const userInfo = await this.checkPermission(userId, id, WorkspaceRole.MEMBER);
+		
+		// 사용자 역할에 따라 조회 조건 설정
+		// ADMIN 또는 SUPER_ADMIN은 비활성 워크스페이스도 볼 수 있음
+		const isAdmin = userInfo.role === WorkspaceRole.ADMIN || userInfo.role === WorkspaceRole.SUPER_ADMIN;
+		const whereCondition = isAdmin 
+			? { id, deleted: false } 
+			: { id, isActive: true, deleted: false };
 
 		const workspace = await this.workspaceRepository.findOne({
-			where: { id, isActive: true },
+			where: whereCondition,
 			relations: ['workspaceUsers', 'workspaceUsers.user', 'invitationCodes'],
 		});
 
@@ -142,12 +172,12 @@ export class WorkspacesService {
 		id: number,
 		updateWorkspaceDto: UpdateWorkspaceDto,
 		userId: number,
-	): Promise<Workspace> {
+	): Promise<WorkspaceCreateResponseDto> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
-			where: { id, isActive: true },
+			where: { id, isActive: true }
 		});
 
 		if (!workspace) {
@@ -155,7 +185,15 @@ export class WorkspacesService {
 		}
 
 		Object.assign(workspace, updateWorkspaceDto);
-		return this.workspaceRepository.save(workspace);
+		const updateWorkspace = await this.workspaceRepository.save(workspace);
+		
+		// 활성 초대코드 찾기
+		const activeInvitationCode = await this.getInvitationCodes(id, userId);
+		
+		return {
+			workspace: updateWorkspace,
+			invitationCode: activeInvitationCode?.code || null,
+		};
 	}
 
 	/**

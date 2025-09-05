@@ -14,6 +14,7 @@ import { InvitationHistory, InvitationStatus } from '../entities/invitation-hist
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
+import { WorkspaceCreateResponseDto } from '../dto/workspace-response.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -32,7 +33,7 @@ export class WorkspacesService {
 	/**
 	 * 워크스페이스 생성
 	 */
-	async create(createWorkspaceDto: CreateWorkspaceDto, userId: number): Promise<Workspace> {
+	async create(createWorkspaceDto: CreateWorkspaceDto, userId: number): Promise<WorkspaceCreateResponseDto> {
 		const superAdmin = await this.usersService.findOne(userId);
 		if (!superAdmin) {
 			throw new AppException(ErrorCode.USER_NOT_FOUND);
@@ -54,25 +55,18 @@ export class WorkspacesService {
 		await this.workspaceUserRepository.save(workspaceUser);
 
 		// 초대 코드 생성
-		const code = this.generateInvitationCode();
-		const invitationCode = this.invitationCodeRepository.create({
-			workspaceId: savedWorkspace.id,
-			code,
-		});
-		await this.invitationCodeRepository.save(invitationCode);
+		await this.createInvitationCode(savedWorkspace.id, userId);
 
 		// 활성 초대코드 조회
-		const activeInvitationCode = await this.invitationCodeRepository.findOne({
-			where: { workspaceId: savedWorkspace.id, isActive: true },
-		});
+		const activeInvitationCode = await this.getInvitationCodes(savedWorkspace.id, userId);
 
 		// 워크스페이스 반환 (초대코드는 문자열로)
-		const result = {
-			...savedWorkspace,
+		const result: WorkspaceCreateResponseDto = {
+			workspace: savedWorkspace,
 			invitationCode: activeInvitationCode?.code || null,
 		};
 
-		return result as any;
+		return result;
 	}
 
 	/**
@@ -82,11 +76,6 @@ export class WorkspacesService {
 		query: WorkspaceQueryDto,
 		userId: number,
 	): Promise<{ workspaces: Workspace[]; total: number }> {
-		// const workspaceUsers = await this.workspaceUserRepository.find({
-		// 	where: { userId },
-		// 	relations: ['workspace'],
-		// });
-
 		const { page = 1, limit = 10, search } = query;
 		const skip = (page - 1) * limit;
 
@@ -113,7 +102,6 @@ export class WorkspacesService {
 			.take(limit)
 			.getMany();
 
-		// return workspaceUsers.map((wu) => wu.workspace).filter((w) => w.isActive);
 		return { workspaces, total };
 	}
 
@@ -320,14 +308,15 @@ export class WorkspacesService {
 	async getInvitationCodes(
 		workspaceId: number,
 		userId: number,
-	): Promise<WorkspaceInvitationCode[]> {
+	): Promise<WorkspaceInvitationCode | null> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
-		return this.invitationCodeRepository.find({
-			where: { workspaceId, isActive: true },
-			order: { createdAt: 'DESC' },
+		const invitationCode = await this.invitationCodeRepository.findOne({
+			where: { workspaceId, isActive: true }
 		});
+
+		return invitationCode;
 	}
 
 	/**

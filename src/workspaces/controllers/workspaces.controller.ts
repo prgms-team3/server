@@ -90,7 +90,7 @@ export class WorkspacesController {
 	@ApiResponse({
 		status: 200,
 		description: '워크스페이스 정보가 성공적으로 수정되었습니다.',
-		type: Workspace,
+		type: WorkspaceCreateResponseDto,
 	})
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
@@ -98,7 +98,7 @@ export class WorkspacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Body() updateWorkspaceDto: UpdateWorkspaceDto,
 		@Request() req: any,
-	): Promise<Workspace> {
+	): Promise<WorkspaceCreateResponseDto> {
 		return this.workspacesService.update(id, updateWorkspaceDto, req.user.sub);
 	}
 

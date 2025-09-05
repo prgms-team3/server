@@ -144,12 +144,12 @@ export class WorkspacesService {
 		id: number,
 		updateWorkspaceDto: UpdateWorkspaceDto,
 		userId: number,
-	): Promise<Workspace> {
+	): Promise<WorkspaceCreateResponseDto> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, id);
 
 		const workspace = await this.workspaceRepository.findOne({
-			where: { id, isActive: true },
+			where: { id, isActive: true }
 		});
 
 		if (!workspace) {
@@ -157,7 +157,15 @@ export class WorkspacesService {
 		}
 
 		Object.assign(workspace, updateWorkspaceDto);
-		return this.workspaceRepository.save(workspace);
+		const updateWorkspace = await this.workspaceRepository.save(workspace);
+		
+		// 활성 초대코드 찾기
+		const activeInvitationCode = await this.getInvitationCodes(id, userId);
+		
+		return {
+			workspace: updateWorkspace,
+			invitationCode: activeInvitationCode?.code || null,
+		};
 	}
 
 	/**

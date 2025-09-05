@@ -125,7 +125,7 @@ export class WorkspacesService {
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
-			relations: ['workspaceUsers', 'workspaceUsers.user'],
+			relations: ['workspaceUsers', 'workspaceUsers.user', 'invitationCodes'],
 		});
 
 		if (!workspace) {

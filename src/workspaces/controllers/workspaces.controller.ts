@@ -22,7 +22,7 @@ import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
 import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
-import { findMyWorkspacesResponseDto } from '../dto/workspace-response.dto';
+import { findMyWorkspacesResponseDto, findUserWorkspacesResponseDto, WorkspaceCreateResponseDto } from '../dto/workspace-response.dto';
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
@@ -40,13 +40,17 @@ export class WorkspacesController {
 	@ApiResponse({
 		status: 201,
 		description: '워크스페이스가 성공적으로 생성되었습니다.',
-		type: Workspace,
+		type: WorkspaceCreateResponseDto,
 	})
+	@ApiResponse({ status: 404, description: '사용자를 찾을 수 없습니다.' })
+	@ApiResponse({ status: 409, description: '이미 존재하는 초대 코드입니다.' })
+	@ApiResponse({ status: 403, description: '워크 스페이스에 접근할 권한이 없습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 작업을 수행할 권한이 없습니다.' })
 	@ApiResponse({ status: 400, description: '잘못된 요청입니다.' })
 	async create(
 		@Body() createWorkspaceDto: CreateWorkspaceDto,
 		@Request() req: AuthenticatedRequest, // 👈 타입 명시
-	): Promise<Workspace> {
+	): Promise<WorkspaceCreateResponseDto> {
 		return this.workspacesService.create(createWorkspaceDto, req.user.sub);
 	}
 
@@ -55,12 +59,12 @@ export class WorkspacesController {
 	@ApiResponse({
 		status: 200,
 		description: '워크스페이스 목록이 성공적으로 조회되었습니다.',
-		type: findMyWorkspacesResponseDto,
+		type: findUserWorkspacesResponseDto,
 	})
 	async findMyWorkspaces(
 		@Query() query: WorkspaceQueryDto,
 		@Request() req: any,
-	): Promise<{ workspaces: Workspace[]; total: number }> {
+	): Promise<findUserWorkspacesResponseDto> {
 		return this.workspacesService.findUserWorkspaces(query, req.user.sub);
 	}
 
@@ -218,7 +222,7 @@ export class WorkspacesController {
 	async getInvitationCodes(
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: any,
-	): Promise<WorkspaceInvitationCode[]> {
+	): Promise<WorkspaceInvitationCode | null> {
 		return this.workspacesService.getInvitationCodes(id, req.user.sub);
 	}
 

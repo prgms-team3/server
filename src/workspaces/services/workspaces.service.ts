@@ -14,6 +14,7 @@ import { InvitationHistory, InvitationStatus } from '../entities/invitation-hist
 import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
+import { findUserWorkspacesResponseDto, WorkspaceCreateResponseDto, WorkspaceWithActiveInvitationCode } from '../dto/workspace-response.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -32,7 +33,7 @@ export class WorkspacesService {
 	/**
 	 * 워크스페이스 생성
 	 */
-	async create(createWorkspaceDto: CreateWorkspaceDto, userId: number): Promise<Workspace> {
+	async create(createWorkspaceDto: CreateWorkspaceDto, userId: number): Promise<WorkspaceCreateResponseDto> {
 		const superAdmin = await this.usersService.findOne(userId);
 		if (!superAdmin) {
 			throw new AppException(ErrorCode.USER_NOT_FOUND);
@@ -54,25 +55,18 @@ export class WorkspacesService {
 		await this.workspaceUserRepository.save(workspaceUser);
 
 		// 초대 코드 생성
-		const code = this.generateInvitationCode();
-		const invitationCode = this.invitationCodeRepository.create({
-			workspaceId: savedWorkspace.id,
-			code,
-		});
-		await this.invitationCodeRepository.save(invitationCode);
+		await this.createInvitationCode(savedWorkspace.id, userId);
 
 		// 활성 초대코드 조회
-		const activeInvitationCode = await this.invitationCodeRepository.findOne({
-			where: { workspaceId: savedWorkspace.id, isActive: true },
-		});
+		const activeInvitationCode = await this.getInvitationCodes(savedWorkspace.id, userId);
 
 		// 워크스페이스 반환 (초대코드는 문자열로)
-		const result = {
-			...savedWorkspace,
+		const result: WorkspaceCreateResponseDto = {
+			workspace: savedWorkspace,
 			invitationCode: activeInvitationCode?.code || null,
 		};
 
-		return result as any;
+		return result;
 	}
 
 	/**
@@ -81,21 +75,17 @@ export class WorkspacesService {
 	async findUserWorkspaces(
 		query: WorkspaceQueryDto,
 		userId: number,
-	): Promise<{ workspaces: Workspace[]; total: number }> {
-		// const workspaceUsers = await this.workspaceUserRepository.find({
-		// 	where: { userId },
-		// 	relations: ['workspace'],
-		// });
-
+	): Promise<findUserWorkspacesResponseDto> {
 		const { page = 1, limit = 10, search } = query;
 		const skip = (page - 1) * limit;
 
 		const queryBuilder = this.workspaceRepository
 			.createQueryBuilder('workspace')
 			.leftJoinAndSelect('workspace.workspaceUsers', 'workspaceUsers')
+			.leftJoinAndSelect('workspace.invitationCodes', 'invitationCodes')
 			.where('workspaceUsers.userId = :userId', { userId })
 			.andWhere('workspace.isActive = :isActive', { isActive: true })
-			.andWhere('workspace.deleted = :deleted', { deleted: false });
+			.andWhere('workspace.deleted = :deleted', { deleted: false })
 
 		if (search) {
 			queryBuilder.andWhere(
@@ -107,14 +97,23 @@ export class WorkspacesService {
 		}
 
 		const total = await queryBuilder.getCount();
-		const workspaces = await queryBuilder
+		let workspaces = await queryBuilder
 			.orderBy('workspace.createdAt', 'DESC')
 			.skip(skip)
 			.take(limit)
 			.getMany();
 
-		// return workspaceUsers.map((wu) => wu.workspace).filter((w) => w.isActive);
-		return { workspaces, total };
+		// 필요하다면 각 워크스페이스에 대해 활성화된 초대 코드만 별도로 처리
+		const workspacesWithActiveInvitationCodes = workspaces.map(workspace => {
+			const activeInvitationCode = workspace.invitationCodes.find(code => code.isActive);
+			return {
+				...workspace,
+				activeInvitationCode: activeInvitationCode?.code || null
+			};
+		});
+
+		return { workspaces: workspacesWithActiveInvitationCodes as WorkspaceWithActiveInvitationCode[], 
+			total };
 	}
 
 	/**
@@ -126,7 +125,7 @@ export class WorkspacesService {
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true },
-			relations: ['workspaceUsers', 'workspaceUsers.user'],
+			relations: ['workspaceUsers', 'workspaceUsers.user', 'invitationCodes'],
 		});
 
 		if (!workspace) {
@@ -206,10 +205,17 @@ export class WorkspacesService {
 
 		const workspace = await this.workspaceRepository.findOne({
 			where: { id, isActive: true, deleted: false },
+			relations: ['invitationCodes'],
 		});
 
 		if (!workspace) {
 			throw new AppException(ErrorCode.WORKSPACE_NOT_FOUND);
+		}
+
+		const invitationCodeId = workspace.invitationCodes.find(code => code.isActive)?.id;
+
+		if (invitationCodeId) {
+			await this.deleteInvitationCode(invitationCodeId, userId);
 		}
 
 		workspace.isActive = false;
@@ -320,14 +326,15 @@ export class WorkspacesService {
 	async getInvitationCodes(
 		workspaceId: number,
 		userId: number,
-	): Promise<WorkspaceInvitationCode[]> {
+	): Promise<WorkspaceInvitationCode | null> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
-		return this.invitationCodeRepository.find({
-			where: { workspaceId, isActive: true },
-			order: { createdAt: 'DESC' },
+		const invitationCode = await this.invitationCodeRepository.findOne({
+			where: { workspaceId, isActive: true }
 		});
+
+		return invitationCode;
 	}
 
 	/**

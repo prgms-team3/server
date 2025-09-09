@@ -18,7 +18,7 @@ export class WorkspaceCreateResponseDto {
 	@ApiProperty({ description: '초대 코드' })
 	invitationCode: string | null;
 }
-	
+
 export class findUserWorkspacesResponseDto {
 	@ApiProperty({ description: '초대 코드가 포함된 워크스페이스 목록' })
 	workspaces: WorkspaceWithActiveInvitationCode[];
@@ -31,5 +31,4 @@ export type WorkspaceWithActiveInvitationCode = Workspace & {
 	activeInvitationCode: string | null;
 	userCount: number;
 	userRole?: WorkspaceRole;
-}
-	
+};

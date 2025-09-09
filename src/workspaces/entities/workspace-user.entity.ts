@@ -43,6 +43,32 @@ export class WorkspaceUser {
 	})
 	role: WorkspaceRole;
 
+	@ApiProperty({
+		description: 'User department in workspace',
+		example: 'Engineering',
+		required: false,
+	})
+	@Column({
+		name: 'department',
+		type: 'varchar',
+		length: 100,
+		nullable: true,
+	})
+	department?: string;
+
+	@ApiProperty({
+		description: 'User position in workspace',
+		example: 'Software Engineer',
+		required: false,
+	})
+	@Column({
+		name: 'position',
+		type: 'varchar',
+		length: 100,
+		nullable: true,
+	})
+	position?: string;
+
 	@ApiProperty({ description: 'Join date', example: '2023-01-01T00:00:00.000Z' })
 	@CreateDateColumn({ name: 'joined_at', type: 'datetime' })
 	joinedAt: Date;

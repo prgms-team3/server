@@ -274,6 +274,27 @@ export class SpacesService {
 	 * 사용자가 워크스페이스에 속해있는지 확인
 	 */
 	private async checkUserInWorkspace(userId: number, workspaceId: number): Promise<void> {
+		await this.checkPermission(userId, workspaceId, WorkspaceRole.MEMBER);
+	}
+
+	/**
+	 * 사용자가 워크스페이스 관리자인지 확인
+	 */
+	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
+		await this.checkPermission(userId, workspaceId, WorkspaceRole.ADMIN);
+	}
+
+	/**
+	 * 사용자의 워크스페이스 권한 확인
+	 * @param userId 사용자 ID
+	 * @param workspaceId 워크스페이스 ID
+	 * @param minimumRole 최소 필요 권한
+	 */
+	private async checkPermission(
+		userId: number,
+		workspaceId: number,
+		minimumRole: WorkspaceRole,
+	): Promise<void> {
 		const workspaceUser = await this.workspaceUserRepository.findOne({
 			where: { userId, workspaceId },
 		});
@@ -281,17 +302,15 @@ export class SpacesService {
 		if (!workspaceUser) {
 			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
 		}
-	}
 
-	/**
-	 * 사용자가 워크스페이스 관리자인지 확인
-	 */
-	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
-		});
+		// 권한 레벨 비교를 위한 매핑
+		const roleLevel = {
+			[WorkspaceRole.MEMBER]: 1,
+			[WorkspaceRole.ADMIN]: 2,
+			[WorkspaceRole.SUPER_ADMIN]: 3,
+		};
 
-		if (!workspaceUser) {
+		if (roleLevel[workspaceUser.role] < roleLevel[minimumRole]) {
 			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
 		}
 	}

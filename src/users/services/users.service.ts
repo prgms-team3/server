@@ -26,10 +26,6 @@ export class UsersService {
 		return this.userRepository.save(user);
 	}
 
-	async findAll(): Promise<User[]> {
-		return this.userRepository.find();
-	}
-
 	async findOne(id: number): Promise<User> {
 		const user = await this.userRepository.findOne({ where: { id } });
 		if (!user) {
@@ -43,7 +39,7 @@ export class UsersService {
 	}
 
 	async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-		const user = await this.findOne(id); // findOne이 사용자를 찾지 못하면 에러를 던집니다.
+		const user = await this.findOne(id);
 		Object.assign(user, updateUserDto);
 		return this.userRepository.save(user);
 	}

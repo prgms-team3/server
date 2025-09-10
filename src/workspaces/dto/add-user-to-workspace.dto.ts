@@ -11,4 +11,18 @@ export class AddUserToWorkspaceDto {
 	@IsOptional()
 	@IsBoolean()
 	isAdmin?: boolean = false;
+
+	@ApiProperty({
+		description: '부서',
+		example: 'Engineering',
+		required: false,
+	})
+	department?: string;
+
+	@ApiProperty({
+		description: '직급',
+		example: 'Software Engineer',
+		required: false,
+	})
+	position?: string;
 }

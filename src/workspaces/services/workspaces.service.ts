@@ -278,7 +278,7 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스에 사용자 추가
+	 * 워크스페이스에 사용자 추가 (관리자 권한)
 	 */
 	async addUser(
 		workspaceId: number,
@@ -288,11 +288,16 @@ export class WorkspacesService {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(adminUserId, workspaceId);
 
+		// 추가하려는 사용자가 존재하는지 확인
+		const userToAdd = await this.usersService.findOne(addUserDto.userId);
+		if (!userToAdd) {
+			throw new AppException(ErrorCode.USER_NOT_FOUND);
+		}
+
 		// 이미 워크스페이스에 속해있는지 확인
 		const existingUser = await this.workspaceUserRepository.findOne({
 			where: { workspaceId, userId: addUserDto.userId },
 		});
-
 		if (existingUser) {
 			throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
 		}
@@ -301,15 +306,15 @@ export class WorkspacesService {
 			workspaceId,
 			userId: addUserDto.userId,
 			role: WorkspaceRole.MEMBER, // 기본값으로 MEMBER 설정
-			department: addUserDto.department, // 추가 필요
-			position: addUserDto.position, // 추가 필요
+			department: addUserDto.department,
+			position: addUserDto.position,
 		});
 
 		await this.workspaceUserRepository.save(workspaceUser);
 	}
 
 	/**
-	 * 워크스페이스에서 사용자 제거 (개선된 버전)
+	 * 워크스페이스에서 사용자 제거 (관리자 권한)
 	 */
 	async removeUser(workspaceId: number, userId: number, adminUserId: number): Promise<void> {
 		// 관리자 권한 확인하면서 관리자 정보도 가져옴

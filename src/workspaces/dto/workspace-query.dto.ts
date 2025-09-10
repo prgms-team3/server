@@ -17,7 +17,7 @@ export class WorkspaceQueryDto {
 	@Min(1, { message: '페이지 크기는 1 이상이어야 합니다.' })
 	limit?: number = 10;
 
-	@ApiProperty({ description: 'Search by name', example: 'Conference', required: false })
+	@ApiProperty({ description: 'Search by name', example: '', required: false })
 	@IsOptional()
 	@IsString()
 	search?: string;

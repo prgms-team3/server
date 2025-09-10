@@ -68,9 +68,10 @@ export class WorkspacesController {
 		description: '워크스페이스 목록이 성공적으로 조회되었습니다.',
 		type: findUserWorkspacesResponseDto,
 	})
+	@ApiResponse({ status: 404, description: '사용자를 찾을 수 없습니다.' })
 	async findMyWorkspaces(
 		@Query() query: WorkspaceQueryDto,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<findUserWorkspacesResponseDto> {
 		return this.workspacesService.findUserWorkspaces(query, req.user.sub);
 	}
@@ -85,7 +86,10 @@ export class WorkspacesController {
 	})
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스에 접근할 권한이 없습니다.' })
-	async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<Workspace> {
+	async findOne(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: AuthenticatedRequest,
+	): Promise<Workspace> {
 		return this.workspacesService.findOne(id, req.user.sub);
 	}
 
@@ -104,7 +108,7 @@ export class WorkspacesController {
 	async update(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() updateWorkspaceDto: UpdateWorkspaceDto,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceCreateResponseDto> {
 		return this.workspacesService.update(id, updateWorkspaceDto, req.user.sub);
 	}
@@ -117,7 +121,10 @@ export class WorkspacesController {
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 비활성화되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	async deActivate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
+	async deActivate(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
 		return this.workspacesService.deActivate(id, req.user.sub);
 	}
 
@@ -129,7 +136,10 @@ export class WorkspacesController {
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 활성화되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	async activate(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
+	async activate(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
 		return this.workspacesService.activate(id, req.user.sub);
 	}
 
@@ -141,7 +151,10 @@ export class WorkspacesController {
 	@ApiResponse({ status: 200, description: '워크스페이스가 성공적으로 삭제되었습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
+	async remove(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
 		return this.workspacesService.remove(id, req.user.sub);
 	}
 
@@ -176,8 +189,6 @@ export class WorkspacesController {
 	}
 
 	@Get(':id/users')
-	@UseGuards(WorkspaceRoleGuard)
-	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN)
 	@ApiOperation({ summary: '워크스페이스 사용자 목록 조회 (멤버 이상)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({
@@ -188,7 +199,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 403, description: '워크스페이스에 접근할 권한이 없습니다.' })
 	async getWorkspaceUsers(
 		@Param('id', ParseIntPipe) id: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceUser[]> {
 		return this.workspacesService.getWorkspaceUsers(id, req.user.sub);
 	}
@@ -204,7 +215,7 @@ export class WorkspacesController {
 	async addUser(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() addUserDto: AddUserToWorkspaceDto,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<void> {
 		return this.workspacesService.addUser(id, addUserDto, req.user.sub);
 	}
@@ -221,7 +232,7 @@ export class WorkspacesController {
 	async removeUser(
 		@Param('id', ParseIntPipe) id: number,
 		@Param('userId', ParseIntPipe) userId: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<void> {
 		return this.workspacesService.removeUser(id, userId, req.user.sub);
 	}
@@ -265,7 +276,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 409, description: '이미 존재하는 초대 코드입니다.' })
 	async createInvitationCode(
 		@Param('id', ParseIntPipe) id: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceInvitationCode> {
 		return this.workspacesService.createInvitationCode(id, req.user.sub);
 	}
@@ -283,7 +294,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async getInvitationCodes(
 		@Param('id', ParseIntPipe) id: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceInvitationCode | null> {
 		return this.workspacesService.getInvitationCodes(id, req.user.sub);
 	}
@@ -297,7 +308,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async regenerateInvitationCode(
 		@Param('id', ParseIntPipe) id: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceInvitationCode> {
 		return this.workspacesService.regenerateInvitationCode(id, req.user.sub);
 	}
@@ -312,7 +323,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 400, description: '유효하지 않은 초대 코드입니다.' })
 	async deleteInvitationCode(
 		@Param('codeId', ParseIntPipe) codeId: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<void> {
 		return this.workspacesService.deleteInvitationCode(codeId, req.user.sub);
 	}
@@ -328,7 +339,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 403, description: '워크스페이스 권한이 없습니다.' })
 	async getMyInfo(
 		@Param('id', ParseIntPipe) id: number,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<WorkspaceUser | null> {
 		return this.workspacesService.getMyWorkspaceInfo(id, req.user.sub);
 	}
@@ -378,7 +389,7 @@ export class WorkspacesController {
 	@ApiResponse({ status: 409, description: '이미 존재하는 사용자입니다.' })
 	async useInvitationCode(
 		@Body() useInvitationCodeDto: UseInvitationCodeDto,
-		@Request() req: any,
+		@Request() req: AuthenticatedRequest,
 	): Promise<Workspace> {
 		return this.workspacesService.useInvitationCode(useInvitationCodeDto, req.user.sub);
 	}

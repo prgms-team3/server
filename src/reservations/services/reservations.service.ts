@@ -30,65 +30,6 @@ export class ReservationsService {
 	/**
 	 * 예약 생성
 	 */
-	// async create(createReservationDto: CreateReservationDto, userId: number): Promise<Reservation> {
-	// 	const { spaceId, startTime, endTime, purpose } = createReservationDto;
-
-	// 	const space = await this.spaceRepository.findOne({
-	// 		where: { id: spaceId, isActive: true },
-	// 		relations: ['workspace'],
-	// 	});
-
-	// 	if (!space) {
-	// 		throw new AppException(ErrorCode.SPACE_NOT_FOUND);
-	// 	}
-
-	// 	// 사용자가 워크스페이스에 속해있는지 확인
-	// 	await this.checkUserInWorkspace(userId, space.workspaceId);
-
-	// 	const reservationStartTime = new Date(startTime);
-	// 	const reservationEndTime = new Date(endTime);
-
-	// 	// 시간 유효성 검사
-	// 	if (reservationStartTime >= reservationEndTime) {
-	// 		throw new AppException({
-	// 			code: 'INVALID_TIME_RANGE',
-	// 			message: '시작 시간은 종료 시간보다 이전이어야 합니다.',
-	// 			status: 400,
-	// 		});
-	// 	}
-
-	// 	if (reservationStartTime < new Date()) {
-	// 		throw new AppException({
-	// 			code: 'INVALID_TIME_RANGE',
-	// 			message: '과거 시간으로는 예약할 수 없습니다.',
-	// 			status: 400,
-	// 		});
-	// 	}
-
-	// 	// 예약 가능 여부 확인
-	// 	await this.checkAvailability(spaceId, reservationStartTime, reservationEndTime);
-
-	// 	// 승인이 필요한 공간인지 확인하여 초기 상태 설정
-	// 	const initialStatus = space.requiresApproval
-	// 		? ReservationStatus.PENDING
-	// 		: ReservationStatus.APPROVED;
-
-	// 	const reservation = this.reservationRepository.create({
-	// 		spaceId,
-	// 		userId,
-	// 		startTime: reservationStartTime,
-	// 		endTime: reservationEndTime,
-	// 		purpose,
-	// 		status: initialStatus,
-	// 	});
-
-	// 	const savedReservation = await this.reservationRepository.save(reservation);
-	// 	return this.findOne(savedReservation.id, userId);
-	// }
-
-	/**
-	 * 예약 생성 2
-	 */
 	async create(createReservationDto: CreateReservationDto, userId: number): Promise<Reservation> {
 		return this.dataSource.transaction(async (manager) => {
 			const { spaceId, startTime, endTime, purpose } = createReservationDto;
@@ -203,7 +144,7 @@ export class ReservationsService {
 		query: ReservationQueryDto,
 	): Promise<{ reservations: Reservation[]; total: number }> {
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, workspaceId);
+		await this.isWorkspaceAdmin(userId, workspaceId);
 
 		const { page = 1, limit = 10, status, startDate, endDate } = query;
 		const skip = (page - 1) * limit;
@@ -386,7 +327,7 @@ export class ReservationsService {
 		}
 
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, reservation.space.workspaceId);
+		await this.isWorkspaceAdmin(userId, reservation.space.workspaceId);
 
 		if (reservation.status !== ReservationStatus.PENDING) {
 			throw new AppException({
@@ -414,7 +355,7 @@ export class ReservationsService {
 		}
 
 		// 관리자 권한 확인
-		await this.checkUserIsAdmin(userId, reservation.space.workspaceId);
+		await this.isWorkspaceAdmin(userId, reservation.space.workspaceId);
 
 		if (reservation.status !== ReservationStatus.PENDING) {
 			throw new AppException({
@@ -434,7 +375,7 @@ export class ReservationsService {
 	async getAvailableTimes(
 		query: AvailableTimesQueryDto,
 		userId: number,
-	): Promise<{ availableSlots: { startTime: string; endTime: string }[] }> {
+	): Promise<{ availableSlots: { startTime: Date; endTime: Date }[] }> {
 		const { spaceId, date } = query;
 
 		const space = await this.spaceRepository.findOne({
@@ -488,14 +429,14 @@ export class ReservationsService {
 		workingHours.start.setHours(9, 0, 0, 0);
 		workingHours.end.setHours(18, 0, 0, 0);
 
-		const availableSlots: Array<{ startTime: string; endTime: string }> = [];
+		const availableSlots: Array<{ startTime: Date; endTime: Date }> = [];
 		let currentTime = workingHours.start;
 
 		for (const blockedTime of blockedTimes) {
 			if (currentTime < blockedTime.startTime) {
 				availableSlots.push({
-					startTime: currentTime.toISOString(),
-					endTime: blockedTime.startTime.toISOString(),
+					startTime: new Date(currentTime),
+					endTime: new Date(blockedTime.startTime),
 				});
 			}
 			currentTime = new Date(Math.max(currentTime.getTime(), blockedTime.endTime.getTime()));
@@ -504,8 +445,8 @@ export class ReservationsService {
 		// 마지막 블록 이후 남은 시간
 		if (currentTime < workingHours.end) {
 			availableSlots.push({
-				startTime: currentTime.toISOString(),
-				endTime: workingHours.end.toISOString(),
+				startTime: new Date(currentTime),
+				endTime: new Date(workingHours.end),
 			});
 		}
 
@@ -550,6 +491,9 @@ export class ReservationsService {
 			})
 			.andWhere('reservation.startTime < :endTime', { endTime })
 			.andWhere('reservation.endTime > :startTime', { startTime })
+			.andWhere(excludeReservationId ? 'reservation.id != :excludeId' : '1=1', {
+				excludeId: excludeReservationId,
+			  })
 			.getMany();
 
 		if (conflictingReservations.length > 0) {
@@ -583,26 +527,30 @@ export class ReservationsService {
 	}
 
 	/**
-	 * 사용자가 워크스페이스 관리자인지 확인
-	 */
-	private async checkUserIsAdmin(userId: number, workspaceId: number): Promise<void> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
-		});
-
-		if (!workspaceUser) {
-			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
-		}
-	}
-
-	/**
 	 * 사용자가 워크스페이스 관리자인지 확인 (boolean 반환)
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId, role: WorkspaceRole.ADMIN },
-		});
-
-		return !!workspaceUser;
-	}
+		try {
+		  // 권한 확인 로직을 사용하여 ADMIN 이상 권한 확인
+		  const workspaceUser = await this.workspaceUserRepository.findOne({
+			where: { userId, workspaceId },
+		  });
+	  
+		  if (!workspaceUser) {
+			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
+		  }
+	  
+		  // 권한 레벨 비교를 위한 매핑
+		  const roleLevel = {
+			[WorkspaceRole.MEMBER]: 1,
+			[WorkspaceRole.ADMIN]: 2,
+			[WorkspaceRole.SUPER_ADMIN]: 3,
+		  };
+	  
+		  // ADMIN 이상 권한 확인
+		  return roleLevel[workspaceUser.role] >= roleLevel[WorkspaceRole.ADMIN];
+		} catch {
+		  return false;
+		}
+	  }
 }

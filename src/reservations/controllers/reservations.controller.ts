@@ -65,6 +65,18 @@ export class ReservationsController {
 		return this.reservationsService.findUserReservations(req.user.sub, query);
 	}
 
+	@Get('available-times')
+	@ApiOperation({ summary: '예약 가능 시간 조회' })
+	@ApiResponse({ status: 200, description: '예약 가능 시간이 성공적으로 조회되었습니다.' })
+	@ApiResponse({ status: 404, description: '공간을 찾을 수 없습니다.' })
+	@ApiResponse({ status: 403, description: '공간에 접근할 권한이 없습니다.' })
+	async getAvailableTimes(
+		@Query() query: AvailableTimesQueryDto,
+		@Request() req: any,
+	): Promise<{ availableSlots: { startTime: Date; endTime: Date }[] }> {
+		return this.reservationsService.getAvailableTimes(query, req.user.sub);
+	}
+
 	@Get(':id')
 	@ApiOperation({ summary: '예약 상세 조회' })
 	@ApiParam({ name: 'id', description: '예약 ID' })
@@ -138,18 +150,6 @@ export class ReservationsController {
 	@ApiResponse({ status: 400, description: '대기 중인 예약만 거절할 수 있습니다.' })
 	async reject(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<void> {
 		return this.reservationsService.reject(id, req.user.sub);
-	}
-
-	@Get('available-times')
-	@ApiOperation({ summary: '예약 가능 시간 조회' })
-	@ApiResponse({ status: 200, description: '예약 가능 시간이 성공적으로 조회되었습니다.' })
-	@ApiResponse({ status: 404, description: '공간을 찾을 수 없습니다.' })
-	@ApiResponse({ status: 403, description: '공간에 접근할 권한이 없습니다.' })
-	async getAvailableTimes(
-		@Query() query: AvailableTimesQueryDto,
-		@Request() req: any,
-	): Promise<{ availableSlots: { startTime: string; endTime: string }[] }> {
-		return this.reservationsService.getAvailableTimes(query, req.user.sub);
 	}
 }
 

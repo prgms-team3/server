@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { KoreanTimeInterceptor } from './common/interceptors/korean-time.interceptor';
 
 async function bootstrap() {
 	try {
@@ -36,6 +37,9 @@ async function bootstrap() {
 				forbidNonWhitelisted: true,
 			}),
 		);
+
+		// 한국 시간 변환 인터셉터 전역 적용
+		app.useGlobalInterceptors(new KoreanTimeInterceptor());
 
 		// main.ts 또는 app.module.ts
 		app.use(testAuthMiddleware);

@@ -33,11 +33,11 @@ export class Reservation {
 	@Column({ name: 'user_id', type: 'int' })
 	userId: number;
 
-	@ApiProperty({ description: 'Start time', example: '2023-01-01T09:00:00.000Z' })
+	@ApiProperty({ description: 'Start time', example: '2023-01-01T09:00:00+09:00' })
 	@Column({ name: 'start_time', type: 'datetime' })
 	startTime: Date;
 
-	@ApiProperty({ description: 'End time', example: '2023-01-01T10:00:00.000Z' })
+	@ApiProperty({ description: 'End time', example: '2023-01-01T10:00:00+09:00' })
 	@Column({ name: 'end_time', type: 'datetime' })
 	endTime: Date;
 
@@ -53,11 +53,11 @@ export class Reservation {
 	@Column({ nullable: true, type: 'varchar', length: 200 })
 	purpose: string;
 
-	@ApiProperty({ description: 'Creation date', example: '2023-01-01T00:00:00.000Z' })
+	@ApiProperty({ description: 'Creation date', example: '2023-01-01T00:00:00+09:00' })
 	@CreateDateColumn({ name: 'created_at', type: 'datetime' })
 	createdAt: Date;
 
-	@ApiProperty({ description: 'Update date', example: '2023-01-01T00:00:00.000Z' })
+	@ApiProperty({ description: 'Update date', example: '2023-01-01T00:00:00+09:00' })
 	@UpdateDateColumn({ name: 'updated_at', type: 'datetime' })
 	updatedAt: Date;
 

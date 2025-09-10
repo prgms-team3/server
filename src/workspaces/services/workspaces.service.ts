@@ -284,7 +284,7 @@ export class WorkspacesService {
 		workspaceId: number,
 		addUserDto: AddUserToWorkspaceDto,
 		adminUserId: number,
-	): Promise<void> {
+	): Promise<WorkspaceUser> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(adminUserId, workspaceId);
 
@@ -310,7 +310,7 @@ export class WorkspacesService {
 			position: addUserDto.position,
 		});
 
-		await this.workspaceUserRepository.save(workspaceUser);
+		return this.workspaceUserRepository.save(workspaceUser);
 	}
 
 	/**

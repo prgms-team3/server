@@ -196,7 +196,8 @@ export class WorkspacesController {
 		description: '워크스페이스 사용자 목록이 성공적으로 조회되었습니다.',
 		type: [WorkspaceUser],
 	})
-	@ApiResponse({ status: 403, description: '워크스페이스에 접근할 권한이 없습니다.' })
+	@ApiResponse({ status: 403, description: '해당 워크스페이스에 접근할 권한이 없습니다.' })
+	@ApiResponse({ status: 404, description: '해당 워크스페이스를 찾을 수 없습니다.' })
 	async getWorkspaceUsers(
 		@Param('id', ParseIntPipe) id: number,
 		@Request() req: AuthenticatedRequest,
@@ -209,14 +210,19 @@ export class WorkspacesController {
 	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '워크스페이스에 사용자 추가 (관리자 권한 이상 필요)' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
-	@ApiResponse({ status: 201, description: '사용자가 성공적으로 추가되었습니다.' })
+	@ApiResponse({
+		status: 201,
+		description: '사용자가 성공적으로 추가되었습니다.',
+		type: WorkspaceUser,
+	})
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
+	@ApiResponse({ status: 404, description: '추가하려는 사용자를 찾을 수 없습니다.' })
 	@ApiResponse({ status: 409, description: '이미 존재하는 사용자입니다.' })
 	async addUser(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() addUserDto: AddUserToWorkspaceDto,
 		@Request() req: AuthenticatedRequest,
-	): Promise<void> {
+	): Promise<WorkspaceUser> {
 		return this.workspacesService.addUser(id, addUserDto, req.user.sub);
 	}
 

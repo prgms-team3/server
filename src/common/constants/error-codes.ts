@@ -7,6 +7,18 @@ export interface ErrorCode {
 }
 
 export const ErrorCode = {
+	// General errors
+	BAD_REQUEST: {
+		code: 'WORKSPACE_BAD_REQUEST',
+		message: '잘못된 요청입니다.',
+		status: HttpStatus.BAD_REQUEST,
+	},
+	SERVER_ERROR: {
+		code: 'WORKSPACE_SERVER_ERROR',
+		message: '처리 중 서버 오류가 발생했습니다.',
+		status: HttpStatus.INTERNAL_SERVER_ERROR,
+	},
+
 	// User related errors
 	USER_NOT_FOUND: {
 		code: 'USER_NOT_FOUND',
@@ -17,11 +29,6 @@ export const ErrorCode = {
 		code: 'USER_ALREADY_EXISTS',
 		message: '이미 존재하는 사용자입니다.',
 		status: HttpStatus.CONFLICT,
-	},
-	INVALID_PASSWORD: {
-		code: 'INVALID_PASSWORD',
-		message: '비밀번호가 올바르지 않습니다.',
-		status: HttpStatus.UNAUTHORIZED,
 	},
 
 	// Workspace related errors

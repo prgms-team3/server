@@ -21,6 +21,8 @@ import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 import { UseInvitationCodeDto } from '../dto/use-invitation-code.dto';
+import { TransferSuperAdminDto } from '../dto/transfer-super-admin.dto';
+import { UpdateWorkspaceUserRoleDto } from '../dto/update-workspace-user-role.dto';
 import { WorkspaceQueryDto } from '../dto/workspace-query.dto';
 import {
 	findMyWorkspacesResponseDto,
@@ -31,6 +33,7 @@ import { Workspace } from '../entities/workspace.entity';
 import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.entity';
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
 import { WorkspacesService } from '../services/workspaces.service';
+import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()
@@ -142,6 +145,36 @@ export class WorkspacesController {
 		return this.workspacesService.remove(id, req.user.sub);
 	}
 
+	@Patch(':id/transfer-super-admin')
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.SUPER_ADMIN)
+	@ApiOperation({ summary: '워크스페이스 SUPER_ADMIN 권한 이전 (슈퍼관리자 권한 필요)' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({
+		status: 200,
+		description: '워크스페이스 SUPER_ADMIN 권한이 성공적으로 이전되었습니다.',
+	})
+	@ApiResponse({
+		status: 403,
+		description: '워크스페이스 SUPER_ADMIN 권한 이전 권한이 없습니다.',
+	})
+	@ApiResponse({ status: 404, description: '워크스페이스 또는 사용자를 찾을 수 없습니다.' })
+	@ApiResponse({
+		status: 400,
+		description: '잘못된 요청입니다. (예: 자신에게 위임 시도)',
+	})
+	async transferSuperAdminRole(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() transferSuperAdminDto: TransferSuperAdminDto,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
+		return this.workspacesService.transferSuperAdminRole(
+			id,
+			req.user.sub,
+			transferSuperAdminDto.newSuperAdminId,
+		);
+	}
+
 	@Get(':id/users')
 	@UseGuards(WorkspaceRoleGuard)
 	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN)
@@ -191,6 +224,31 @@ export class WorkspacesController {
 		@Request() req: any,
 	): Promise<void> {
 		return this.workspacesService.removeUser(id, userId, req.user.sub);
+	}
+
+	@Patch(':id/users/role')
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
+	@ApiOperation({ summary: '워크스페이스 사용자 역할 변경 (관리자 이상 권한 필요)' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({ status: 200, description: '사용자 역할이 성공적으로 변경되었습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
+	@ApiResponse({ status: 404, description: '워크스페이스 또는 사용자를 찾을 수 없습니다.' })
+	@ApiResponse({
+		status: 400,
+		description: '잘못된 요청입니다. (예: 권한 없는 역할 변경 시도, 자신 역할 변경 시도 등)',
+	})
+	async updateUserRole(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateWorkspaceUserRoleDto: UpdateWorkspaceUserRoleDto,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
+		return this.workspacesService.updateUserRole(
+			id,
+			updateWorkspaceUserRoleDto.userId,
+			req.user.sub,
+			updateWorkspaceUserRoleDto.role,
+		);
 	}
 
 	@Post(':id/invitation-codes')
@@ -257,6 +315,56 @@ export class WorkspacesController {
 		@Request() req: any,
 	): Promise<void> {
 		return this.workspacesService.deleteInvitationCode(codeId, req.user.sub);
+	}
+
+	@Get(':id/me')
+	@ApiOperation({ summary: '내 정보 조회' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({
+		status: 200,
+		description: '내 정보가 성공적으로 조회되었습니다.',
+		type: WorkspaceUser,
+	})
+	@ApiResponse({ status: 403, description: '워크스페이스 권한이 없습니다.' })
+	async getMyInfo(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: any,
+	): Promise<WorkspaceUser | null> {
+		return this.workspacesService.getMyWorkspaceInfo(id, req.user.sub);
+	}
+
+	@Patch(':id/me/')
+	@ApiOperation({ summary: '내 워크스페이스 정보 수정' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({ status: 200, description: '내 정보가 성공적으로 수정되었습니다.' })
+	@ApiResponse({ status: 403, description: '워크스페이스 권한이 없습니다.' })
+	@ApiResponse({ status: 404, description: '사용자를 찾을 수 없습니다.' })
+	async updateMyInfo(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateWorkspaceUserDto: UpdateWorkspaceUserDto,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
+		return this.workspacesService.updateMyWorkspaceInfo(
+			id,
+			req.user.sub,
+			updateWorkspaceUserDto,
+		);
+	}
+
+	@Delete(':id/leave')
+	@ApiOperation({ summary: '워크스페이스 나가기' })
+	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiResponse({ status: 200, description: '워크스페이스에서 성공적으로 나갔습니다.' })
+	@ApiResponse({
+		status: 403,
+		description: '워크스페이스 소유자(SUPER_ADMIN)는 나갈 수 없습니다.',
+	})
+	@ApiResponse({ status: 404, description: '워크스페이스 또는 사용자를 찾을 수 없습니다.' })
+	async leaveWorkspace(
+		@Param('id', ParseIntPipe) id: number,
+		@Request() req: AuthenticatedRequest,
+	): Promise<void> {
+		return this.workspacesService.leaveWorkspace(id, req.user.sub);
 	}
 
 	@Post('join')

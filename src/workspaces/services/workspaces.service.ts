@@ -1,10 +1,11 @@
 import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common'; // Inject 제거
 import { InjectRepository } from '@nestjs/typeorm';
-import { UsersService } from 'src/users/services/users.service';
+import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
+import { UsersService } from '../../users/services/users.service';
 import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
@@ -277,21 +278,26 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스에 사용자 추가
+	 * 워크스페이스에 사용자 추가 (관리자 권한)
 	 */
 	async addUser(
 		workspaceId: number,
 		addUserDto: AddUserToWorkspaceDto,
 		adminUserId: number,
-	): Promise<void> {
+	): Promise<WorkspaceUser> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(adminUserId, workspaceId);
+
+		// 추가하려는 사용자가 존재하는지 확인
+		const userToAdd = await this.usersService.findOne(addUserDto.userId);
+		if (!userToAdd) {
+			throw new AppException(ErrorCode.USER_NOT_FOUND);
+		}
 
 		// 이미 워크스페이스에 속해있는지 확인
 		const existingUser = await this.workspaceUserRepository.findOne({
 			where: { workspaceId, userId: addUserDto.userId },
 		});
-
 		if (existingUser) {
 			throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
 		}
@@ -300,15 +306,15 @@ export class WorkspacesService {
 			workspaceId,
 			userId: addUserDto.userId,
 			role: WorkspaceRole.MEMBER, // 기본값으로 MEMBER 설정
-			department: addUserDto.department, // 추가 필요
-			position: addUserDto.position, // 추가 필요
+			department: addUserDto.department,
+			position: addUserDto.position,
 		});
 
-		await this.workspaceUserRepository.save(workspaceUser);
+		return this.workspaceUserRepository.save(workspaceUser);
 	}
 
 	/**
-	 * 워크스페이스에서 사용자 제거 (개선된 버전)
+	 * 워크스페이스에서 사용자 제거 (관리자 권한)
 	 */
 	async removeUser(workspaceId: number, userId: number, adminUserId: number): Promise<void> {
 		// 관리자 권한 확인하면서 관리자 정보도 가져옴
@@ -425,6 +431,13 @@ export class WorkspacesService {
 	}
 
 	/**
+	 * 초대 코드 생성
+	 */
+	private generateInvitationCode(): string {
+		return crypto.randomBytes(8).toString('hex').toUpperCase();
+	}
+
+	/**
 	 * 초대 코드 삭제 (비활성화)
 	 */
 	async deleteInvitationCode(codeId: number, userId: number): Promise<void> {
@@ -492,9 +505,9 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 사용자의 워크스페이스 권한 정보 조회
+	 * 사용자의 워크스페이스 정보 조회
 	 */
-	private async getUserWorkspaceRole(
+	private async getUserWorkspace(
 		userId: number,
 		workspaceId: number,
 	): Promise<WorkspaceUser | null> {
@@ -519,7 +532,7 @@ export class WorkspacesService {
 		workspaceId: number,
 		requiredRole: WorkspaceRole,
 	): Promise<WorkspaceUser> {
-		const workspaceUser = await this.getUserWorkspaceRole(userId, workspaceId);
+		const workspaceUser = await this.getUserWorkspace(userId, workspaceId);
 
 		if (!workspaceUser) {
 			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
@@ -573,9 +586,24 @@ export class WorkspacesService {
 	}
 
 	/**
+	 * 워크스페이스 내 자신의 정보 조회
+	 */
+	async getMyWorkspaceInfo(workspaceId: number, userId: number): Promise<WorkspaceUser> {
+		const workspaceUser = await this.workspaceUserRepository.findOne({
+			where: { workspaceId, userId },
+			relations: ['user'],
+		});
+		if (!workspaceUser) {
+			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
+		}
+
+		return workspaceUser;
+	}
+
+	/**
 	 * 워크스페이스 내 자신의 정보 수정
 	 */
-	async updateMyWorkspaceUser(
+	async updateMyWorkspaceInfo(
 		workspaceId: number,
 		userId: number,
 		updateDto: UpdateWorkspaceUserDto,
@@ -622,9 +650,98 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 초대 코드 생성
+	 * 워크스페이스 SUPER_ADMIN 역할 위임
 	 */
-	private generateInvitationCode(): string {
-		return crypto.randomBytes(8).toString('hex').toUpperCase();
+	async transferSuperAdminRole(
+		workspaceId: number,
+		currentSuperAdminId: number,
+		newSuperAdminId: number,
+	): Promise<void> {
+		// 1. 현재 요청자가 SUPER_ADMIN인지 확인
+		await this.checkUserIsSuperAdmin(currentSuperAdminId, workspaceId);
+
+		if (currentSuperAdminId === newSuperAdminId) {
+			throw new AppException(ErrorCode.BAD_REQUEST);
+		}
+
+		// 2. 위임받을 사용자가 워크스페이스에 속해있는지 확인
+		const newSuperAdminWorkspaceUser = await this.checkPermission(
+			newSuperAdminId,
+			workspaceId,
+			WorkspaceRole.MEMBER, // 최소 MEMBER에게만 위임 가능하도록 설정
+		);
+
+		const currentSuperAdminWorkspaceUser = await this.workspaceUserRepository.findOneByOrFail({
+			userId: currentSuperAdminId,
+			workspaceId,
+		});
+
+		// 3. 트랜잭션 시작
+		const queryRunner = this.workspaceRepository.manager.connection.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction();
+
+		try {
+			// 4. 현재 SUPER_ADMIN의 역할을 ADMIN으로 변경
+			currentSuperAdminWorkspaceUser.role = WorkspaceRole.ADMIN;
+			await queryRunner.manager.save(currentSuperAdminWorkspaceUser);
+
+			// 5. 새로운 사용자의 역할을 SUPER_ADMIN으로 변경
+			newSuperAdminWorkspaceUser.role = WorkspaceRole.SUPER_ADMIN;
+			await queryRunner.manager.save(newSuperAdminWorkspaceUser);
+
+			// 6. Workspace 엔티티의 superAdminName 업데이트
+			const newSuperAdminUser = await queryRunner.manager.findOneByOrFail(User, {
+				id: newSuperAdminId,
+			});
+			await queryRunner.manager.update(Workspace, workspaceId, {
+				superAdminName: newSuperAdminUser.name,
+			});
+
+			await queryRunner.commitTransaction();
+		} catch (error) {
+			await queryRunner.rollbackTransaction();
+			throw new AppException(ErrorCode.SERVER_ERROR);
+		} finally {
+			await queryRunner.release();
+		}
+	}
+
+	/**
+	 * 워크스페이스 사용자 역할 변경 (SUPER_ADMIN만 가능)
+	 */
+	async updateUserRole(
+		workspaceId: number,
+		targetUserId: number,
+		requestingUserId: number,
+		newRole: WorkspaceRole,
+	): Promise<void> {
+		// 1. 요청자가 SUPER_ADMIN인지 확인 (컨트롤러의 가드가 이미 처리하지만, 서비스 계층에서 명시적 확인)
+		await this.checkUserIsSuperAdmin(requestingUserId, workspaceId);
+
+		// 2. 자기 자신의 역할을 변경할 수 없음
+		if (targetUserId === requestingUserId) {
+			throw new AppException(ErrorCode.BAD_REQUEST);
+		}
+
+		// 3. SUPER_ADMIN으로의 역할 변경은 소유권 이전 기능을 통해서만 가능
+		if (newRole === WorkspaceRole.SUPER_ADMIN) {
+			throw new AppException(ErrorCode.BAD_REQUEST);
+		}
+
+		// 4. 대상 사용자를 찾고, 대상이 SUPER_ADMIN이 아닌지 확인
+		const targetWorkspaceUser = await this.workspaceUserRepository.findOneByOrFail({
+			workspaceId,
+			userId: targetUserId,
+		});
+
+		//	'SUPER_ADMIN의 역할은 변경할 수 없습니다.',
+		if (targetWorkspaceUser.role === WorkspaceRole.SUPER_ADMIN) {
+			throw new AppException(ErrorCode.BAD_REQUEST);
+		}
+
+		// 5. 역할 업데이트 및 저장
+		targetWorkspaceUser.role = newRole;
+		await this.workspaceUserRepository.save(targetWorkspaceUser);
 	}
 }

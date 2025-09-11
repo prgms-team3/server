@@ -186,15 +186,13 @@ export class SpacesService {
 	 */
 	async getAvailableAmenities(): Promise<string[]> {
 		return [
-			'tv',
+			'monitor',
 			'projector',
 			'whiteboard',
 			'aircon',
 			'microphone',
 			'speaker',
 			'wifi',
-			'parking',
-			'board',
 		];
 	}
 

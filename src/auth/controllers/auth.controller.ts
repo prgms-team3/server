@@ -222,7 +222,7 @@ export class AuthController {
 	}
 
 	@Get(':provider/callback')
-	@ApiOperation({ summary: '소셜 로그인 콜백 (프론트엔드로 리다이렉트)' })
+	@ApiOperation({ summary: '인증서버로 콜백 받는 엔드포인트, 프런트엔드는 사용하지 않음' })
 	@ApiParam({
 		name: 'provider',
 		description: '소셜 로그인 제공자',

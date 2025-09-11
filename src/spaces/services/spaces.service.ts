@@ -193,7 +193,6 @@ export class SpacesService {
 			'microphone',
 			'speaker',
 			'wifi',
-			'parking',
 			'board',
 		];
 	}

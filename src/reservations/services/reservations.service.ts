@@ -463,23 +463,6 @@ export class ReservationsService {
 		endTime: Date,
 		excludeReservationId?: number,
 	): Promise<void> {
-		// 기존 예약과 충돌하는지 확인
-		// const conflictingReservations = await this.reservationRepository
-		// 	.createQueryBuilder('reservation')
-		// 	.where('reservation.spaceId = :spaceId', { spaceId })
-		// 	.andWhere('reservation.status IN (:...statuses)', {
-		// 		statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING],
-		// 	})
-		// 	.andWhere('reservation.startTime < :endTime', { endTime })
-		// 	.andWhere('reservation.endTime > :startTime', { startTime })
-		// 	.andWhere(excludeReservationId ? 'reservation.id != :excludeId' : '1=1', {
-		// 		excludeId: excludeReservationId,
-		// 	})
-		// 	.getMany();
-
-		// if (conflictingReservations.length > 0) {
-		// 	throw new AppException(ErrorCode.RESERVATION_CONFLICT);
-		// }
 
 		// 비관적 락을 사용한 예약 가능 여부 확인
 		const conflictingReservations = await manager

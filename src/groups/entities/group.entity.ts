@@ -15,6 +15,11 @@ import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 import { GroupRole, GroupUser } from './group-user.entity';
 
+export enum GroupType {
+	DEPARTMENT = 'DEPARTMENT', // 부서
+	ADMIN = 'ADMIN', // 관리자 그룹
+}
+
 @Entity('groups')
 @Index(['workspaceId'])
 @Index(['workspaceId', 'name'], { unique: true }) // 워크스페이스 내 그룹명 중복 방지
@@ -34,6 +39,14 @@ export class Group {
 	@ApiProperty({ description: '최대 멤버 수' })
 	@Column({ name: 'max_members', default: 10, type: 'int', unsigned: true })
 	maxMembers: number;
+
+	@ApiProperty({ description: '그룹 타입', enum: GroupType })
+	@Column({ type: 'enum', enum: GroupType, default: GroupType.DEPARTMENT })
+	type: GroupType;
+
+	@ApiProperty({ description: '리더 이름', example: '홍길동', required: false })
+	@Column({ name: 'leader_name', length: 20, nullable: true })
+	leaderName?: string;
 
 	@ApiProperty({ description: '워크스페이스 ID' })
 	@Column({ name: 'workspace_id' })

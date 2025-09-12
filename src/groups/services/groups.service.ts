@@ -6,12 +6,11 @@ import {
 	NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UpdateReservationDto } from 'src/reservations/dto/update-reservation.dto';
 import { IsNull, Not, Repository } from 'typeorm';
 import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
-import { Group } from '../entities/group.entity';
+import { Group, GroupType } from '../entities/group.entity';
 import { GroupRole, GroupUser } from '../entities/group-user.entity';
 
 @Injectable()
@@ -26,14 +25,10 @@ export class GroupsService {
 	) {}
 
 	async create(createGroupDto: CreateGroupDto, userId: number): Promise<Group> {
-		// 워크스페이스 멤버십 검증
-		const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId: createGroupDto.workspaceId },
-		});
+		const { workspaceId } = createGroupDto;
 
-		if (!workspaceUser) {
-			throw new ForbiddenException('워크스페이스 멤버만 그룹을 생성할 수 있습니다');
-		}
+		// 워크스페이스 멤버십 검증
+		await this.validateWorkspaceMembership(userId, workspaceId);
 
 		const group = this.groupRepository.create({
 			...createGroupDto,
@@ -44,7 +39,7 @@ export class GroupsService {
 		// 생성자(현재 유저)를 그룹의 관리자로 자동 추가
 		const creatorMember = this.groupUserRepository.create({
 			groupId: savedGroup.id,
-			userId, // 현재 유저를 관리자로 설정
+			userId,
 			role: GroupRole.ADMIN,
 		});
 

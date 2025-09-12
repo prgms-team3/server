@@ -40,7 +40,11 @@ export class Group {
 	@Column({ name: 'max_members', default: 10, type: 'int', unsigned: true })
 	maxMembers: number;
 
-	@ApiProperty({ description: '그룹 타입', enum: GroupType })
+	@ApiProperty({
+		description: '그룹 타입',
+		enum: GroupType,
+		example: GroupType.DEPARTMENT,
+	})
 	@Column({ type: 'enum', enum: GroupType, default: GroupType.DEPARTMENT })
 	type: GroupType;
 

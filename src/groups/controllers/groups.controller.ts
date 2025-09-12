@@ -50,6 +50,18 @@ export class GroupsController {
 		return this.groupsService.findAll();
 	}
 
+	@Get('workspace/:workspaceId')
+	@ApiOperation({ summary: '특정 워크스페이스의 그룹 조회' })
+	@ApiParam({
+		name: 'workspaceId',
+		description: '조회할 워크스페이스의 고유 ID',
+	})
+	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
+	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없음' })
+	findByWorkspace(@Param('workspaceId', ParseIntPipe) workspaceId: number): Promise<Group[]> {
+		return this.groupsService.findByWorkspace(workspaceId);
+	}
+
 	// 정적 라우트를 동적 라우트보다 먼저 선언
 	@Get('deleted')
 	@ApiOperation({ summary: '삭제된 그룹 목록 조회' })

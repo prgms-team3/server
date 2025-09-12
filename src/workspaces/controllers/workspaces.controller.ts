@@ -400,15 +400,4 @@ export class WorkspacesController {
 	): Promise<Workspace> {
 		return this.workspacesService.useInvitationCode(useInvitationCodeDto, req.user.sub);
 	}
-
-	@Get(':id/groups')
-	@ApiOperation({ summary: '워크스페이스에 속한 그룹 목록 조회' })
-	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
-	@ApiResponse({ status: 200, description: '그룹 목록 조회 성공', type: [Group] })
-	async getWorkspaceGroups(
-		@Param('id', ParseIntPipe) id: number,
-		@Request() req: AuthenticatedRequest,
-	): Promise<Group[]> {
-		return this.workspacesService.getWorkspaceGroups(id, req.user.sub);
-	}
 }

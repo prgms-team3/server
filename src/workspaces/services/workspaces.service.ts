@@ -747,15 +747,4 @@ export class WorkspacesService {
 		targetWorkspaceUser.role = newRole;
 		await this.workspaceUserRepository.save(targetWorkspaceUser);
 	}
-
-	/**
-	 * 워크스페이스에 속한 활성 그룹만 조회하는 메서드 예시
-	 */
-	async getWorkspaceGroups(workspaceId: number, userId: number): Promise<Group[]> {
-		// 워크스페이스 멤버십 검증 로직 필요시 추가
-		return await this.groupRepository.find({
-			where: { workspaceId, isActive: true },
-			order: { createdAt: 'DESC' },
-		});
-	}
 }

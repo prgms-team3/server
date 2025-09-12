@@ -11,7 +11,11 @@ async function bootstrap() {
 
 		// CORS 설정 추가
 		app.enableCors({
-			origin: ['http://localhost:3000', 'http://localhost:3001'], // 프론트엔드 URL
+			origin: [
+				'http://localhost:3000',
+				'http://localhost:3001',
+				'https://placeit-client-332546556871.asia-northeast1.run.app',
+			],
 			credentials: true, // 쿠키를 포함한 요청 허용
 			methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 			allowedHeaders: [

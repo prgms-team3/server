@@ -24,6 +24,7 @@ import { CreateSpaceDto } from '../dto/create-space.dto';
 import { UpdateSpaceDto } from '../dto/update-space.dto';
 import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
+import { SpaceWithStatsDto } from '../dto/space-response.dto';
 import { Space } from '../entities/space.entity';
 import { UnavailableTime } from '../entities/unavailable-time.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -38,13 +39,13 @@ export class SpacesController {
 	@Post()
 	@ApiOperation({ summary: '공간 생성' })
 	@ApiParam({ name: 'workspaceId', description: '워크스페이스 ID' })
-	@ApiResponse({ status: 201, description: '공간이 성공적으로 생성되었습니다.', type: Space })
+	@ApiResponse({ status: 201, description: '공간이 성공적으로 생성되었습니다.', type: SpaceWithStatsDto })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	async create(
 		@Param('workspaceId', ParseIntPipe) workspaceId: number,
 		@Body() createSpaceDto: CreateSpaceDto,
 		@Request() req: any,
-	): Promise<Space> {
+	): Promise<SpaceWithStatsDto> {
 		return this.spacesService.create(workspaceId, createSpaceDto, req.user.sub);
 	}
 
@@ -57,7 +58,7 @@ export class SpacesController {
 		@Param('workspaceId', ParseIntPipe) workspaceId: number,
 		@Query() query: SpaceQueryDto,
 		@Request() req: any,
-	): Promise<{ spaces: Space[]; total: number }> {
+	): Promise<{ spaces: SpaceWithStatsDto[]; total: number }> {
 		return this.spacesService.findByWorkspace(workspaceId, query, req.user.sub);
 	}
 
@@ -72,7 +73,7 @@ export class SpacesController {
 	})
 	@ApiResponse({ status: 404, description: '공간을 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '공간에 접근할 권한이 없습니다.' })
-	async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<Space> {
+	async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any): Promise<SpaceWithStatsDto> {
 		return this.spacesService.findOne(id, req.user.sub);
 	}
 
@@ -82,8 +83,8 @@ export class SpacesController {
 	@ApiParam({ name: 'id', description: '공간 ID' })
 	@ApiResponse({
 		status: 200,
-		description: '공간 정보가 성공적으로 수정되었습니다.',
-		type: Space,
+		description: '공간 정보가 성공적으로 수정되었습니다. 월간 예약 건수와 현재 이용률이 포함됩니다.',
+		type: SpaceWithStatsDto,
 	})
 	@ApiResponse({ status: 404, description: '공간을 찾을 수 없습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
@@ -91,7 +92,7 @@ export class SpacesController {
 		@Param('id', ParseIntPipe) id: number,
 		@Body() updateSpaceDto: UpdateSpaceDto,
 		@Request() req: any,
-	): Promise<Space> {
+	): Promise<SpaceWithStatsDto> {
 		return this.spacesService.update(id, updateSpaceDto, req.user.sub);
 	}
 

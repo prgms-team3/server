@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { convertDatesToKoreanTime } from '../utils/time.util';
@@ -13,12 +8,12 @@ import { convertDatesToKoreanTime } from '../utils/time.util';
  */
 @Injectable()
 export class KoreanTimeInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(
-      map((data) => {
-        // 응답 데이터의 모든 Date 객체를 한국 시간으로 변환
-        return convertDatesToKoreanTime(data);
-      }),
-    );
-  }
+	intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+		return next.handle().pipe(
+			map((data) => {
+				// 응답 데이터의 모든 Date 객체를 한국 시간으로 변환
+				return convertDatesToKoreanTime(data);
+			}),
+		);
+	}
 }

@@ -40,7 +40,11 @@ export class Group {
 	@Column({ name: 'max_members', default: 10, type: 'int', unsigned: true })
 	maxMembers: number;
 
-	@ApiProperty({ description: '그룹 타입', enum: GroupType })
+	@ApiProperty({
+		description: '그룹 타입',
+		enum: GroupType,
+		example: GroupType.DEPARTMENT,
+	})
 	@Column({ type: 'enum', enum: GroupType, default: GroupType.DEPARTMENT })
 	type: GroupType;
 
@@ -79,6 +83,9 @@ export class Group {
 		cascade: ['remove'], // 그룹 삭제 시 멤버도 함께 삭제
 	})
 	members: GroupUser[];
+
+	// loadRelationCountAndMap로 주입되는 값 (선택적)
+	memberCount?: number;
 
 	// Virtual properties with proper typing
 	@ApiProperty({ description: '현재 멤버 수' })

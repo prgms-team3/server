@@ -185,15 +185,7 @@ export class SpacesService {
 	 * 사용 가능한 시설 목록 조회
 	 */
 	async getAvailableAmenities(): Promise<string[]> {
-		return [
-			'monitor',
-			'projector',
-			'whiteboard',
-			'aircon',
-			'microphone',
-			'speaker',
-			'wifi',
-		];
+		return ['monitor', 'projector', 'whiteboard', 'aircon', 'microphone', 'speaker', 'wifi'];
 	}
 
 	/**

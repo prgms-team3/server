@@ -21,6 +21,7 @@ import {
 	WorkspaceWithActiveInvitationCode,
 } from '../dto/workspace-response.dto';
 import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
+import { Group } from '../../groups/entities/group.entity';
 
 @Injectable()
 export class WorkspacesService {
@@ -34,6 +35,8 @@ export class WorkspacesService {
 		@InjectRepository(InvitationHistory)
 		private invitationHistoryRepository: Repository<InvitationHistory>,
 		private usersService: UsersService, // @InjectRepository(User) 제거
+		@InjectRepository(Group)
+		private groupRepository: Repository<Group>,
 	) {}
 
 	/**

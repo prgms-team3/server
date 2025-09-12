@@ -32,7 +32,11 @@ export class CreateGroupDto {
 	@Max(50, { message: '최대 멤버 수는 50명을 초과할 수 없습니다' })
 	maxMembers?: number = 10;
 
-	@ApiProperty({ description: '그룹 타입', enum: GroupType, example: GroupType.DEPARTMENT })
+	@ApiProperty({
+		description: '그룹 타입 (DEPARTMENT: 부서, ADMIN: 관리자)',
+		enum: GroupType,
+		example: GroupType.DEPARTMENT,
+	})
 	@IsEnum(GroupType)
 	type: GroupType;
 

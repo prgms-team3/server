@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
-import { Group, GroupType } from '../entities/group.entity';
+import { Group } from '../entities/group.entity';
 import { GroupRole, GroupUser } from '../entities/group-user.entity';
 import { GroupsService } from '../services/groups.service';
 
@@ -48,6 +48,18 @@ export class GroupsController {
 	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
 	findAll(): Promise<Group[]> {
 		return this.groupsService.findAll();
+	}
+
+	@Get('workspace/:workspaceId')
+	@ApiOperation({ summary: '특정 워크스페이스의 그룹 조회' })
+	@ApiParam({
+		name: 'workspaceId',
+		description: '조회할 워크스페이스의 고유 ID',
+	})
+	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
+	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없음' })
+	findByWorkspace(@Param('workspaceId', ParseIntPipe) workspaceId: number): Promise<Group[]> {
+		return this.groupsService.findByWorkspace(workspaceId);
 	}
 
 	// 정적 라우트를 동적 라우트보다 먼저 선언

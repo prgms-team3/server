@@ -36,11 +36,11 @@ export function parseJwtExpirationToSeconds(timeString: string): number {
  * Date 객체를 한국 시간(KST, UTC+9)으로 변환하여 ISO 문자열로 반환
  */
 export function toKoreanTime(date: Date): string {
-  // UTC 시간에 9시간을 더해 한국 시간으로 변환
-  const koreaTime = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  
-  // ISO 문자열로 변환 후 Z를 +09:00으로 대체
-  return koreaTime.toISOString().replace('Z', '+09:00');
+	// UTC 시간에 9시간을 더해 한국 시간으로 변환
+	const koreaTime = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+
+	// ISO 문자열로 변환 후 Z를 +09:00으로 대체
+	return koreaTime.toISOString().replace('Z', '+09:00');
 }
 
 /**
@@ -48,36 +48,36 @@ export function toKoreanTime(date: Date): string {
  * 순환 참조를 처리하기 위해 방문한 객체를 추적
  */
 export function convertDatesToKoreanTime<T>(obj: T, visited = new WeakMap()): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
+	if (obj === null || obj === undefined) {
+		return obj;
+	}
 
-  if (obj instanceof Date) {
-    return toKoreanTime(obj) as unknown as T;
-  }
+	if (obj instanceof Date) {
+		return toKoreanTime(obj) as unknown as T;
+	}
 
-  if (Array.isArray(obj)) {
-    return obj.map(item => convertDatesToKoreanTime(item, visited)) as unknown as T;
-  }
+	if (Array.isArray(obj)) {
+		return obj.map((item) => convertDatesToKoreanTime(item, visited)) as unknown as T;
+	}
 
-  if (typeof obj === 'object') {
-    // 이미 방문한 객체인지 확인
-    if (visited.has(obj as object)) {
-      return visited.get(obj as object);
-    }
+	if (typeof obj === 'object') {
+		// 이미 방문한 객체인지 확인
+		if (visited.has(obj as object)) {
+			return visited.get(obj as object);
+		}
 
-    const result = { ...obj };
-    
-    // 현재 객체를 방문 목록에 추가
-    visited.set(obj as object, result);
-    
-    for (const key in result) {
-      if (Object.prototype.hasOwnProperty.call(result, key)) {
-        result[key] = convertDatesToKoreanTime(result[key], visited);
-      }
-    }
-    return result;
-  }
+		const result = { ...obj };
 
-  return obj;
+		// 현재 객체를 방문 목록에 추가
+		visited.set(obj as object, result);
+
+		for (const key in result) {
+			if (Object.prototype.hasOwnProperty.call(result, key)) {
+				result[key] = convertDatesToKoreanTime(result[key], visited);
+			}
+		}
+		return result;
+	}
+
+	return obj;
 }

@@ -463,7 +463,6 @@ export class ReservationsService {
 		endTime: Date,
 		excludeReservationId?: number,
 	): Promise<void> {
-
 		// 비관적 락을 사용한 예약 가능 여부 확인
 		const conflictingReservations = await manager
 			.createQueryBuilder(Reservation, 'reservation')
@@ -476,7 +475,7 @@ export class ReservationsService {
 			.andWhere('reservation.endTime > :startTime', { startTime })
 			.andWhere(excludeReservationId ? 'reservation.id != :excludeId' : '1=1', {
 				excludeId: excludeReservationId,
-			  })
+			})
 			.getMany();
 
 		if (conflictingReservations.length > 0) {
@@ -514,26 +513,26 @@ export class ReservationsService {
 	 */
 	private async isWorkspaceAdmin(userId: number, workspaceId: number): Promise<boolean> {
 		try {
-		  // 권한 확인 로직을 사용하여 ADMIN 이상 권한 확인
-		  const workspaceUser = await this.workspaceUserRepository.findOne({
-			where: { userId, workspaceId },
-		  });
-	  
-		  if (!workspaceUser) {
-			throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
-		  }
-	  
-		  // 권한 레벨 비교를 위한 매핑
-		  const roleLevel = {
-			[WorkspaceRole.MEMBER]: 1,
-			[WorkspaceRole.ADMIN]: 2,
-			[WorkspaceRole.SUPER_ADMIN]: 3,
-		  };
-	  
-		  // ADMIN 이상 권한 확인
-		  return roleLevel[workspaceUser.role] >= roleLevel[WorkspaceRole.ADMIN];
+			// 권한 확인 로직을 사용하여 ADMIN 이상 권한 확인
+			const workspaceUser = await this.workspaceUserRepository.findOne({
+				where: { userId, workspaceId },
+			});
+
+			if (!workspaceUser) {
+				throw new AppException(ErrorCode.WORKSPACE_ACCESS_DENIED);
+			}
+
+			// 권한 레벨 비교를 위한 매핑
+			const roleLevel = {
+				[WorkspaceRole.MEMBER]: 1,
+				[WorkspaceRole.ADMIN]: 2,
+				[WorkspaceRole.SUPER_ADMIN]: 3,
+			};
+
+			// ADMIN 이상 권한 확인
+			return roleLevel[workspaceUser.role] >= roleLevel[WorkspaceRole.ADMIN];
 		} catch {
-		  return false;
+			return false;
 		}
-	  }
+	}
 }

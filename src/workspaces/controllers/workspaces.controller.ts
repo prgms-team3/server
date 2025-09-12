@@ -34,6 +34,7 @@ import { WorkspaceInvitationCode } from '../entities/workspace-invitation-code.e
 import { WorkspaceRole, WorkspaceUser } from '../entities/workspace-user.entity';
 import { WorkspacesService } from '../services/workspaces.service';
 import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
+import { Group } from '../../groups/entities/group.entity';
 
 @ApiTags('Workspaces')
 @ApiBearerAuth()

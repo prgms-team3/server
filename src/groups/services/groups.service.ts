@@ -48,12 +48,17 @@ export class GroupsService {
 		return savedGroup;
 	}
 
+	/**
+	 * 워크스페이스에 속한 활성 그룹만 조회하는 메서드 예시
+	 */
 	async findByWorkspace(workspaceId: number): Promise<Group[]> {
-		return await this.groupRepository.find({
-			where: { workspaceId },
-			relations: ['members', 'members.user'],
-			order: { createdAt: 'DESC' }, // 최신순 정렬 추가
-		});
+		return await this.groupRepository
+			.createQueryBuilder('group')
+			.where('group.workspaceId = :workspaceId', { workspaceId })
+			.andWhere('group.isActive = :isActive', { isActive: true })
+			.loadRelationCountAndMap('group.memberCount', 'group.members')
+			.orderBy('group.createdAt', 'DESC')
+			.getMany();
 	}
 
 	async findAll(): Promise<Group[]> {

@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../types/authenticated-request';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
-import { Group } from '../entities/group.entity';
+import { Group, GroupType } from '../entities/group.entity';
 import { GroupRole, GroupUser } from '../entities/group-user.entity';
 import { GroupsService } from '../services/groups.service';
 

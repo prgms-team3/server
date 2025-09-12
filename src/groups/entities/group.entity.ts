@@ -84,6 +84,9 @@ export class Group {
 	})
 	members: GroupUser[];
 
+	// loadRelationCountAndMap로 주입되는 값 (선택적)
+	memberCount?: number;
+
 	// Virtual properties with proper typing
 	@ApiProperty({ description: '현재 멤버 수' })
 	get currentMemberCount(): number {

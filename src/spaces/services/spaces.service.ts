@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Like, Repository } from 'typeorm';
+import { Between, Like, Repository, In } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
+import { Reservation, ReservationStatus } from '../../reservations/entities/reservation.entity';
 import { CreateSpaceDto } from '../dto/create-space.dto';
 import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
@@ -19,6 +20,8 @@ export class SpacesService {
 		private unavailableTimeRepository: Repository<UnavailableTime>,
 		@InjectRepository(WorkspaceUser)
 		private workspaceUserRepository: Repository<WorkspaceUser>,
+		@InjectRepository(Reservation)
+		private reservationRepository: Repository<Reservation>,
 	) {}
 
 	/**
@@ -28,7 +31,7 @@ export class SpacesService {
 		workspaceId: number,
 		createSpaceDto: CreateSpaceDto,
 		userId: number,
-	): Promise<Space> {
+	): Promise<Space & { monthlyReservationCount: number; currentUtilizationRate: number }> {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
@@ -49,7 +52,7 @@ export class SpacesService {
 		workspaceId: number,
 		query: SpaceQueryDto,
 		userId: number,
-	): Promise<{ spaces: Space[]; total: number }> {
+	): Promise<{ spaces: (Space & { monthlyReservationCount: number; currentUtilizationRate: number })[]; total: number }> {
 		// 사용자가 워크스페이스에 속해있는지 확인
 		await this.checkUserInWorkspace(userId, workspaceId);
 
@@ -80,13 +83,18 @@ export class SpacesService {
 			.take(limit)
 			.getMany();
 
-		return { spaces, total };
+		// 각 공간에 통계 정보 추가
+		const spacesWithStats = await Promise.all(
+			spaces.map(space => this.addSpaceStatistics(space))
+		);
+
+		return { spaces: spacesWithStats, total };
 	}
 
 	/**
 	 * 공간 상세 조회
 	 */
-	async findOne(id: number, userId: number): Promise<Space> {
+	async findOne(id: number, userId: number): Promise<Space & { monthlyReservationCount: number; currentUtilizationRate: number }> {
 		const space = await this.spaceRepository.findOne({
 			where: { id },
 			relations: ['workspace', 'images', 'unavailableTimes'],
@@ -99,13 +107,14 @@ export class SpacesService {
 		// 사용자가 워크스페이스에 속해있는지 확인
 		await this.checkUserInWorkspace(userId, space.workspaceId);
 
-		return space;
+		// 통계 정보 추가
+		return this.addSpaceStatistics(space);
 	}
 
 	/**
 	 * 공간 수정
 	 */
-	async update(id: number, updateSpaceDto: UpdateSpaceDto, userId: number): Promise<Space> {
+	async update(id: number, updateSpaceDto: UpdateSpaceDto, userId: number): Promise<Space & { monthlyReservationCount: number; currentUtilizationRate: number }> {
 		const space = await this.spaceRepository.findOne({
 			where: { id },
 		});
@@ -186,6 +195,117 @@ export class SpacesService {
 	 */
 	async getAvailableAmenities(): Promise<string[]> {
 		return ['monitor', 'projector', 'whiteboard', 'aircon', 'microphone', 'speaker', 'wifi'];
+	}
+
+	/**
+	 * 공간의 월간 예약 건수 계산
+	 */
+	async getMonthlyReservationCount(spaceId: number, date: Date = new Date()): Promise<number> {
+		// 한국 시간으로 변환 (UTC에 9시간 추가)
+		const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+
+		// 한국 시간 기준으로 월의 시작과 끝 계산
+		const startOfMonth = new Date(Date.UTC(
+			koreaDate.getUTCFullYear(),
+			koreaDate.getUTCMonth(),
+			1,
+			0, 0, 0, 0
+		  ));
+		  
+		  const endOfMonth = new Date(Date.UTC(
+			koreaDate.getUTCFullYear(),
+			koreaDate.getUTCMonth() + 1,
+			0,
+			23, 59, 59, 999
+		  ));
+
+		const count = await this.reservationRepository.count({
+			where: {
+				spaceId,
+				status: In([ReservationStatus.APPROVED, ReservationStatus.COMPLETED]),
+				startTime: Between(startOfMonth, endOfMonth),
+			},
+		});
+
+		return count;
+	}
+
+	/**
+	 * 공간의 현재 이용률 계산 (오늘 기준)
+	 */
+	async getCurrentUtilizationRate(spaceId: number, date: Date = new Date()): Promise<number> {
+		// 한국 시간으로 변환
+		const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  
+		// 한국 시간 기준으로 하루의 시작과 끝 계산
+		const startOfDay = new Date(Date.UTC(
+		  koreaDate.getUTCFullYear(),
+		  koreaDate.getUTCMonth(),
+		  koreaDate.getUTCDate(),
+		  0, 0, 0, 0
+		));
+		
+		const endOfDay = new Date(Date.UTC(
+		  koreaDate.getUTCFullYear(),
+		  koreaDate.getUTCMonth(),
+		  koreaDate.getUTCDate(),
+		  23, 59, 59, 999
+		));
+
+		// 업무 시간 (9:00 - 18:00) = 9시간 = 540분
+		const totalWorkingMinutes = 9 * 60;
+
+		// 해당 날짜의 승인된 예약들 조회
+		const reservations = await this.reservationRepository.find({
+			where: {
+				spaceId,
+				status: In([ReservationStatus.APPROVED, ReservationStatus.COMPLETED]),
+				startTime: Between(startOfDay, endOfDay),
+			},
+		});
+
+		// 예약된 총 시간 계산 (분 단위)
+		let totalReservedMinutes = 0;
+		for (const reservation of reservations) {
+			const startTime = new Date(Math.max(reservation.startTime.getTime(), startOfDay.getTime()));
+			const endTime = new Date(Math.min(reservation.endTime.getTime(), endOfDay.getTime()));
+			
+			// 업무 시간 내의 예약 시간만 계산 (9:00 - 18:00)
+			const workingStart = new Date(date);
+			workingStart.setHours(9, 0, 0, 0);
+			const workingEnd = new Date(date);
+			workingEnd.setHours(18, 0, 0, 0);
+
+			const reservationStart = new Date(Math.max(startTime.getTime(), workingStart.getTime()));
+			const reservationEnd = new Date(Math.min(endTime.getTime(), workingEnd.getTime()));
+
+			if (reservationStart < reservationEnd) {
+				const durationMinutes = (reservationEnd.getTime() - reservationStart.getTime()) / (1000 * 60);
+				totalReservedMinutes += durationMinutes;
+			}
+		}
+
+		// 이용률 계산 (백분율)
+		const utilizationRate = totalWorkingMinutes > 0 ? (totalReservedMinutes / totalWorkingMinutes) * 100 : 0;
+		
+		// 100%를 초과하지 않도록 제한
+		return Math.min(Math.round(utilizationRate * 100) / 100, 100);
+	}
+
+	/**
+	 * 공간에 통계 정보 추가
+	 */
+	private async addSpaceStatistics(space: Space): Promise<Space & { monthlyReservationCount: number; currentUtilizationRate: number }> {
+		const [monthlyReservationCount, currentUtilizationRate] = await Promise.all([
+			this.getMonthlyReservationCount(space.id),
+			this.getCurrentUtilizationRate(space.id),
+		]);
+
+		return {
+			...space,
+			monthlyReservationCount,
+			currentUtilizationRate,
+		};
 	}
 
 	/**

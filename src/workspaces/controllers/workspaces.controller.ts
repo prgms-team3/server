@@ -351,7 +351,7 @@ export class WorkspacesController {
 		return this.workspacesService.getMyWorkspaceInfo(id, req.user.sub);
 	}
 
-	@Patch(':id/me/')
+	@Patch(':id/me')
 	@ApiOperation({ summary: '내 워크스페이스 정보 수정' })
 	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '내 정보가 성공적으로 수정되었습니다.' })

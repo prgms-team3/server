@@ -154,6 +154,8 @@ export class ReservationsController {
 }
 
 @ApiTags('Workspace Reservations')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('workspaces/:workspaceId/reservations')
 export class WorkspaceReservationsController {
 	constructor(private readonly reservationsService: ReservationsService) {}

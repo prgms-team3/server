@@ -36,12 +36,6 @@ export class CreateSpaceDto {
 	@MaxLength(200, { message: '위치는 200자를 초과할 수 없습니다.' })
 	location?: string;
 
-	@ApiProperty({ description: 'Space size in square meters', example: 25.5, required: false })
-	@IsOptional()
-	@IsNumber({}, { message: '크기는 숫자여야 합니다.' })
-	@Min(0, { message: '크기는 0 이상이어야 합니다.' })
-	size?: number;
-
 	@ApiProperty({ description: 'Maximum capacity', example: 12 })
 	@IsNotEmpty({ message: '수용 인원은 필수입니다.' })
 	@IsNumber({}, { message: '수용 인원은 숫자여야 합니다.' })

@@ -33,4 +33,17 @@ export class CreateReservationDto {
 	@IsString()
 	@MaxLength(200, { message: '예약 목적은 200자를 초과할 수 없습니다.' })
 	purpose?: string;
+
+	@ApiProperty({ description: 'Attendees', example: 'John Doe, Jane Smith', required: false })
+	@IsOptional()
+	@IsString()
+	@MaxLength(200, { message: '참석자 이름은 200자를 초과할 수 없습니다.' })
+	attendees?: string;
+
+	@ApiProperty({ description: 'Memo', example: 'Meeting with team', required: false })
+	@IsOptional()
+	@IsString()
+	@MaxLength(200, { message: '메모는 200자를 초과할 수 없습니다.' })
+	memo?: string;
+
 }

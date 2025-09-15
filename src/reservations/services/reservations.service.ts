@@ -32,7 +32,7 @@ export class ReservationsService {
 	 */
 	async create(createReservationDto: CreateReservationDto, userId: number): Promise<Reservation> {
 		return this.dataSource.transaction(async (manager) => {
-			const { spaceId, startTime, endTime, purpose } = createReservationDto;
+			const { spaceId, startTime, endTime, purpose, attendees, memo } = createReservationDto;
 			const reservationStartTime = new Date(startTime);
 			const reservationEndTime = new Date(endTime);
 
@@ -87,6 +87,8 @@ export class ReservationsService {
 				endTime: reservationEndTime,
 				purpose,
 				status: initialStatus,
+				attendees,
+				memo,
 			});
 
 			return manager.save(reservation);

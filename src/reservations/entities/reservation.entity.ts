@@ -33,6 +33,14 @@ export class Reservation {
 	@Column({ name: 'user_id', type: 'int' })
 	userId: number;
 
+	@ApiProperty({ description: 'Attendees', example: 'John Doe, Jane Smith' })
+	@Column({ name: 'attendees', type: 'varchar', length: 200 })
+	attendees: string;
+
+	@ApiProperty({ description: 'Memo', example: 'Meeting with team' })
+	@Column({ name: 'memo', type: 'varchar', length: 200 })
+	memo: string;
+
 	@ApiProperty({ description: 'Start time', example: '2023-01-01T09:00:00+09:00' })
 	@Column({ name: 'start_time', type: 'datetime' })
 	startTime: Date;

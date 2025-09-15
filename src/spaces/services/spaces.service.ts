@@ -63,7 +63,6 @@ export class SpacesService {
 			.createQueryBuilder('space')
 			.leftJoinAndSelect('space.images', 'images')
 			.where('space.workspaceId = :workspaceId', { workspaceId })
-			.andWhere('space.isActive = :isActive', { isActive: true })
 			.andWhere('space.deleted = :deleted', { deleted: false });
 
 		if (search) {

@@ -58,8 +58,11 @@ export class GroupsController {
 	})
 	@ApiResponse({ status: 200, description: '그룹 목록', type: [Group] })
 	@ApiResponse({ status: 404, description: '워크스페이스를 찾을 수 없음' })
-	findByWorkspace(@Param('workspaceId', ParseIntPipe) workspaceId: number): Promise<Group[]> {
-		return this.groupsService.findByWorkspace(workspaceId);
+	findByWorkspace(
+		@Param('workspaceId', ParseIntPipe) workspaceId: number,
+		@Req() req: AuthenticatedRequest,
+	): Promise<Group[]> {
+		return this.groupsService.findByWorkspace(workspaceId, req.user.sub);
 	}
 
 	// 정적 라우트를 동적 라우트보다 먼저 선언

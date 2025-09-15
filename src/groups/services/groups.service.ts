@@ -6,12 +6,13 @@ import {
 	NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { IsNull, Not, Repository, In } from 'typeorm';
 import { WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
 import { Group, GroupType } from '../entities/group.entity';
 import { GroupRole, GroupUser } from '../entities/group-user.entity';
+import { UpdateReservationDto } from 'src/reservations/dto/update-reservation.dto';
 
 @Injectable()
 export class GroupsService {
@@ -51,14 +52,35 @@ export class GroupsService {
 	/**
 	 * 워크스페이스에 속한 활성 그룹만 조회하는 메서드 예시
 	 */
-	async findByWorkspace(workspaceId: number): Promise<Group[]> {
-		return await this.groupRepository
+	async findByWorkspace(workspaceId: number, userId: number): Promise<Group[]> {
+		const groups = await this.groupRepository
 			.createQueryBuilder('group')
 			.where('group.workspaceId = :workspaceId', { workspaceId })
 			.andWhere('group.isActive = :isActive', { isActive: true })
 			.loadRelationCountAndMap('group.memberCount', 'group.members')
 			.orderBy('group.createdAt', 'DESC')
 			.getMany();
+
+		const workspaceUser = await this.workspaceUserRepository.findOne({
+			where: { workspaceId, userId },
+		});
+		if (!workspaceUser) {
+			throw new ForbiddenException('워크스페이스 멤버만 그룹을 조회할 수 있습니다');
+		}
+
+		// 현재 유저가 관리자인 그룹 목록 조회 후 매핑
+		const groupIds = groups.map((g) => g.id);
+		const adminMemberships = await this.groupUserRepository.find({
+			where: { userId, groupId: In(groupIds), role: GroupRole.ADMIN },
+			select: ['groupId'],
+		});
+		const adminSet = new Set(adminMemberships.map((m) => m.groupId));
+
+		return groups.map((g) => {
+			// 결과에 isAdmin 플래그를 추가
+			(g as any).isAdmin = adminSet.has(g.id);
+			return g;
+		});
 	}
 
 	async findAll(): Promise<Group[]> {

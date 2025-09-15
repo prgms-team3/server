@@ -25,7 +25,7 @@ export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
 	@Get('me')
-	@ApiOperation({ summary: '내 정보 조회' })
+	@ApiOperation({ summary: '내 정보 조회 (미사용)' })
 	@ApiResponse({ status: 200, description: '현재 로그인한 사용자 정보', type: User })
 	@ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
 	async getMe(@Req() req: AuthenticatedRequest): Promise<User> {
@@ -33,7 +33,7 @@ export class UsersController {
 	}
 
 	@Patch('me')
-	@ApiOperation({ summary: '내 정보 수정' })
+	@ApiOperation({ summary: '내 정보 수정 (미사용)' })
 	@ApiResponse({ status: 200, description: '수정된 사용자 정보', type: User })
 	@ApiResponse({ status: 401, description: '인증되지 않은 사용자' })
 	@ApiResponse({ status: 400, description: '잘못된 요청 데이터' })

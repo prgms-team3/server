@@ -30,7 +30,7 @@ export class ReservationQueryDto {
 
 	@ApiProperty({
 		description: 'Filter by start date',
-		example: '2023-01-01T00:00:00+09:00',
+		example: '2023-01-01',
 		required: false,
 	})
 	@IsOptional()
@@ -39,7 +39,7 @@ export class ReservationQueryDto {
 
 	@ApiProperty({
 		description: 'Filter by end date',
-		example: '2023-01-31T23:59:59+09:00',
+		example: '2023-01-31',
 		required: false,
 	})
 	@IsOptional()

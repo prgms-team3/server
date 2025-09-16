@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { AuthenticatedRequest } from '../../types/authenticated-request';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { CreateGroupDto } from '../dto/create-group.dto';
 import { UpdateGroupDto } from '../dto/update-group.dto';
 import { Group } from '../entities/group.entity';

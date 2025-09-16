@@ -13,7 +13,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
-import { AuthenticatedRequest } from '../../types/authenticated-request';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
 

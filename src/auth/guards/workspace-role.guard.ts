@@ -8,7 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AuthenticatedRequest } from '../../types/authenticated-request';
+import { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
 import { WORKSPACE_ROLES_KEY } from '../decorators/workspace-role.decorator';
 

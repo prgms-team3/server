@@ -13,16 +13,10 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Group } from './group.entity';
 
-export enum GroupRole {
-	ADMIN = 'ADMIN',
-	MEMBER = 'MEMBER',
-}
-
 @Entity('group_user')
 @Unique(['groupId', 'userId'])
 @Index(['groupId'])
 @Index(['userId'])
-@Index(['groupId', 'role'])
 export class GroupUser {
 	@ApiProperty({ description: '그룹 멤버 ID', example: 1 })
 	@PrimaryGeneratedColumn()
@@ -35,29 +29,6 @@ export class GroupUser {
 	@ApiProperty({ description: '사용자 ID', example: 1 })
 	@Column({ name: 'user_id', type: 'int' })
 	userId: number;
-
-	@ApiProperty({
-		description: '그룹 내 역할',
-		enum: GroupRole,
-		enumName: 'GroupRole',
-		example: GroupRole.MEMBER,
-		examples: {
-			admin: {
-				value: 'ADMIN',
-				description: '관리자 - 그룹 설정 변경, 멤버 관리, 역할 변경 권한',
-			},
-			member: {
-				value: 'MEMBER',
-				description: '일반 멤버 - 그룹 참여 및 기본 활동 권한',
-			},
-		},
-	})
-	@Column({
-		type: 'enum',
-		enum: GroupRole,
-		default: GroupRole.MEMBER,
-	})
-	role: GroupRole;
 
 	@ApiProperty({ description: '가입일시' })
 	@CreateDateColumn({ name: 'joined_at' })

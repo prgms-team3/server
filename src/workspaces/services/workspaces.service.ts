@@ -22,10 +22,12 @@ import {
 } from '../dto/workspace-response.dto';
 import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
 import { Group } from '../../groups/entities/group.entity';
+import { GroupType } from '../../groups/entities/group.entity';
 
 @Injectable()
 export class WorkspacesService {
 	constructor(
+		private readonly usersService: UsersService,
 		@InjectRepository(Workspace)
 		private workspaceRepository: Repository<Workspace>,
 		@InjectRepository(WorkspaceUser)
@@ -34,7 +36,6 @@ export class WorkspacesService {
 		private invitationCodeRepository: Repository<WorkspaceInvitationCode>,
 		@InjectRepository(InvitationHistory)
 		private invitationHistoryRepository: Repository<InvitationHistory>,
-		private usersService: UsersService, // @InjectRepository(User) 제거
 		@InjectRepository(Group)
 		private groupRepository: Repository<Group>,
 	) {}
@@ -54,7 +55,7 @@ export class WorkspacesService {
 		// 워크스페이스 생성 시 superAdminName 필드 추가
 		const workspace = this.workspaceRepository.create({
 			...createWorkspaceDto,
-			superAdminName: superAdmin.name, // 실제 사용자 이름으로 설정
+			superAdminName: superAdmin.name,
 		});
 		const savedWorkspace = await this.workspaceRepository.save(workspace);
 
@@ -65,6 +66,16 @@ export class WorkspacesService {
 			role: WorkspaceRole.SUPER_ADMIN,
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
+
+		// 관리자 전용 그룹 생성
+		const adminGroup = this.groupRepository.create({
+			workspaceId: savedWorkspace.id,
+			name: '관리자',
+			description: '워크스페이스 관리자 그룹',
+			type: GroupType.ADMIN,
+			leaderName: superAdmin.name,
+		});
+		await this.groupRepository.save(adminGroup);
 
 		// 초대 코드 생성
 		await this.createInvitationCode(savedWorkspace.id, userId);
@@ -570,6 +581,19 @@ export class WorkspacesService {
 	 */
 	private async checkUserIsSuperAdmin(userId: number, workspaceId: number): Promise<void> {
 		await this.checkPermission(userId, workspaceId, WorkspaceRole.SUPER_ADMIN);
+	}
+
+	// 추가: 불리언 반환 헬퍼들 (check* 유지, 예외 기반 호출과 병행 가능)
+	async isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.MEMBER);
+	}
+
+	async isUserAdmin(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.ADMIN);
+	}
+
+	async isUserSuperAdmin(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.SUPER_ADMIN);
 	}
 
 	/**

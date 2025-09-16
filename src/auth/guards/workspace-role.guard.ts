@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+	CanActivate,
+	ExecutionContext,
+	ForbiddenException,
+	Injectable,
+	BadRequestException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,13 +31,24 @@ export class WorkspaceRoleGuard implements CanActivate {
 		}
 
 		const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-		const userId = request.user.sub;
+		const userId = request.user?.sub;
+		if (!userId) {
+			throw new ForbiddenException('인증 정보가 필요합니다.');
+		}
 
-		// URL에서 워크스페이스 ID 추출 (라우트 파라미터에서)
-		const workspaceId = parseInt(request.params.id || request.params.workspaceId);
+		// 명시적 키만 허용: params, query, body 중 workspaceId 찾기
+		const candidate =
+			request.params?.workspaceId ??
+			request.query?.workspaceId ??
+			request.body?.workspaceId ??
+			request.body?.workspace?.id;
 
-		if (!workspaceId) {
-			throw new ForbiddenException('워크스페이스 ID가 필요합니다.');
+		const workspaceId =
+			candidate !== undefined && candidate !== null
+				? Number.parseInt(String(candidate), 10)
+				: NaN;
+		if (Number.isNaN(workspaceId)) {
+			throw new BadRequestException('워크스페이스 ID가 필요합니다.');
 		}
 
 		const workspaceUser = await this.workspaceUserRepository.findOne({
@@ -42,6 +59,10 @@ export class WorkspaceRoleGuard implements CanActivate {
 			throw new ForbiddenException('워크스페이스에 접근할 권한이 없습니다.');
 		}
 
-		return requiredRoles.includes(workspaceUser.role);
+		if (!requiredRoles.includes(workspaceUser.role)) {
+			throw new ForbiddenException('워크스페이스 관리자 권한이 없습니다.');
+		}
+
+		return true;
 	}
 }

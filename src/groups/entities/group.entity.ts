@@ -22,7 +22,6 @@ export enum GroupType {
 
 @Entity('groups')
 @Index(['workspaceId'])
-@Index(['workspaceId', 'name'], { unique: true }) // 워크스페이스 내 그룹명 중복 방지
 export class Group {
 	@ApiProperty({ description: '그룹 ID' })
 	@PrimaryGeneratedColumn()

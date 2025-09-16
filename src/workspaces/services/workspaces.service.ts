@@ -780,7 +780,7 @@ export class WorkspacesService {
 		targetWorkspaceUser.role = newRole;
 		await this.workspaceUserRepository.save(targetWorkspaceUser);
 		// 역할 변경에 따라 관리자 그룹 멤버 추가/제거
-		if (newRole === WorkspaceRole.ADMIㄹN) {
+		if (newRole === WorkspaceRole.ADMIN) {
 			await this.addUserToAdminGroup(workspaceId, targetUserId);
 		} else {
 			await this.removeUserFromAdminGroup(workspaceId, targetUserId);

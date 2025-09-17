@@ -12,6 +12,7 @@ import { ReservationQueryDto } from '../dto/reservation-query.dto';
 import { UpdateReservationDto } from '../dto/update-reservation.dto';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { createKoreanDateTime } from '../../common/utils/time.util';
 
 @Injectable()
 export class ReservationsService {
@@ -396,10 +397,8 @@ export class ReservationsService {
 		await this.checkUserInWorkspace(userId, space.workspaceId);
 
 		const targetDate = new Date(date);
-		const startOfDay = new Date(targetDate);
-		startOfDay.setHours(0, 0, 0, 0);
-		const endOfDay = new Date(targetDate);
-		endOfDay.setHours(23, 59, 59, 999);
+		const startOfDay = createKoreanDateTime(targetDate, 9, 0, 0);
+		const endOfDay = createKoreanDateTime(targetDate, 18, 0, 0);
 
 		// 해당 날짜의 예약된 시간 조회
 		const reservations = await this.reservationRepository.find({
@@ -426,16 +425,9 @@ export class ReservationsService {
 			...unavailableTimes.map((u) => ({ startTime: u.startTime, endTime: u.endTime })),
 		].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
-		// 가능한 시간대 계산 (9:00 - 18:00 기준)
-		const workingHours = {
-			start: new Date(targetDate),
-			end: new Date(targetDate),
-		};
-		workingHours.start.setHours(9, 0, 0, 0);
-		workingHours.end.setHours(18, 0, 0, 0);
-
+		// 가능한 시간대 계산
 		const availableSlots: Array<{ startTime: Date; endTime: Date }> = [];
-		let currentTime = workingHours.start;
+		let currentTime = startOfDay;
 
 		for (const blockedTime of blockedTimes) {
 			if (currentTime < blockedTime.startTime) {
@@ -448,10 +440,10 @@ export class ReservationsService {
 		}
 
 		// 마지막 블록 이후 남은 시간
-		if (currentTime < workingHours.end) {
+		if (currentTime < endOfDay) {
 			availableSlots.push({
 				startTime: new Date(currentTime),
-				endTime: new Date(workingHours.end),
+				endTime: new Date(endOfDay),
 			});
 		}
 
@@ -465,7 +457,7 @@ export class ReservationsService {
     @Cron('0,30 0-9 * * *')
     async markCompletedReservations(): Promise<void> {
         try {
-            const now = new Date();
+            const now = createKoreanDateTime(new Date(), 0, 0, 0);
             
             const result = await this.reservationRepository.update(
                 {

@@ -80,6 +80,13 @@ export class WorkspacesService {
 		});
 		await this.groupRepository.save(adminGroup);
 
+		// 관리자 그룹에 생성자(SUPER_ADMIN) 멤버로 추가
+		const adminGroupUser = this.groupUserRepository.create({
+			groupId: adminGroup.id,
+			userId,
+		});
+		await this.groupUserRepository.save(adminGroupUser);
+
 		// 초대 코드 생성
 		await this.createInvitationCode(savedWorkspace.id, userId);
 

@@ -11,9 +11,8 @@ import {
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
-import { GroupRole, GroupUser } from './group-user.entity';
+import { GroupUser } from './group-user.entity';
 
 export enum GroupType {
 	DEPARTMENT = 'DEPARTMENT', // 부서
@@ -102,39 +101,8 @@ export class Group {
 		return Math.max(0, this.maxMembers - this.currentMemberCount);
 	}
 
-	@ApiProperty({ description: '그룹 관리자 목록', type: () => [GroupUser] })
-	get admins(): GroupUser[] {
-		return this.members?.filter((member) => member.role === GroupRole.ADMIN) ?? [];
-	}
-
-	@ApiProperty({ description: '일반 멤버 목록', type: () => [GroupUser] })
-	get regularMembers(): GroupUser[] {
-		return this.members?.filter((member) => member.role === GroupRole.MEMBER) ?? [];
-	}
-
-	// Business logic methods
-	isUserMember(userId: number): boolean {
-		return this.members?.some((member) => member.userId === userId) ?? false;
-	}
-
-	isUserAdmin(userId: number): boolean {
-		return (
-			this.members?.some(
-				(member) => member.userId === userId && member.role === GroupRole.ADMIN,
-			) ?? false
-		);
-	}
-
-	getUserRole(userId: number): GroupRole | null {
-		const member = this.members?.find((member) => member.userId === userId);
-		return member?.role ?? null;
-	}
-
-	canUserJoin(userId: number): boolean {
-		return !this.isUserMember(userId) && this.canAddMember && this.isActive;
-	}
-
-	canUserManage(userId: number): boolean {
-		return this.isUserAdmin(userId);
+	//
+	isUserInGroup(userId: number): boolean {
+		return this.members?.some((m) => m.userId === userId) ?? false;
 	}
 }

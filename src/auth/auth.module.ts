@@ -9,6 +9,7 @@ import { AuthController } from './controllers/auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from './guards/workspace-role.guard';
 import { AuthService } from './services/auth.service';
+import { GroupsModule } from 'src/groups/groups.module';
 
 @Module({
 	imports: [
@@ -17,6 +18,7 @@ import { AuthService } from './services/auth.service';
 		ConfigModule,
 		JwtModule,
 		TypeOrmModule.forFeature([WorkspaceUser]),
+		forwardRef(() => GroupsModule),
 	],
 	controllers: [AuthController],
 	providers: [AuthService, JwtAuthGuard, WorkspaceRoleGuard],

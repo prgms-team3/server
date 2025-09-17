@@ -1,11 +1,12 @@
 import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common'; // Inject 제거
-import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { UsersService } from '../../users/services/users.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { GroupUser } from '../../groups/entities/group-user.entity';
 import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
@@ -22,10 +23,12 @@ import {
 } from '../dto/workspace-response.dto';
 import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
 import { Group } from '../../groups/entities/group.entity';
+import { GroupType } from '../../groups/entities/group.entity';
 
 @Injectable()
 export class WorkspacesService {
 	constructor(
+		private readonly usersService: UsersService,
 		@InjectRepository(Workspace)
 		private workspaceRepository: Repository<Workspace>,
 		@InjectRepository(WorkspaceUser)
@@ -34,9 +37,10 @@ export class WorkspacesService {
 		private invitationCodeRepository: Repository<WorkspaceInvitationCode>,
 		@InjectRepository(InvitationHistory)
 		private invitationHistoryRepository: Repository<InvitationHistory>,
-		private usersService: UsersService, // @InjectRepository(User) 제거
 		@InjectRepository(Group)
 		private groupRepository: Repository<Group>,
+		@InjectRepository(GroupUser)
+		private groupUserRepository: Repository<GroupUser>,
 	) {}
 
 	/**
@@ -54,7 +58,7 @@ export class WorkspacesService {
 		// 워크스페이스 생성 시 superAdminName 필드 추가
 		const workspace = this.workspaceRepository.create({
 			...createWorkspaceDto,
-			superAdminName: superAdmin.name, // 실제 사용자 이름으로 설정
+			superAdminName: superAdmin.name,
 		});
 		const savedWorkspace = await this.workspaceRepository.save(workspace);
 
@@ -65,6 +69,16 @@ export class WorkspacesService {
 			role: WorkspaceRole.SUPER_ADMIN,
 		});
 		await this.workspaceUserRepository.save(workspaceUser);
+
+		// 관리자 전용 그룹 생성
+		const adminGroup = this.groupRepository.create({
+			workspaceId: savedWorkspace.id,
+			name: '관리자',
+			description: '워크스페이스 관리자 그룹',
+			type: GroupType.ADMIN,
+			leaderName: superAdmin.name,
+		});
+		await this.groupRepository.save(adminGroup);
 
 		// 초대 코드 생성
 		await this.createInvitationCode(savedWorkspace.id, userId);
@@ -339,6 +353,9 @@ export class WorkspacesService {
 			throw new AppException(ErrorCode.WORKSPACE_AUTHORIZATION_DENIED);
 		}
 
+		// 관리자 그룹에서 제거
+		await this.removeUserFromAdminGroup(workspaceId, userId);
+
 		await this.workspaceUserRepository.remove(targetUser);
 	}
 
@@ -572,6 +589,19 @@ export class WorkspacesService {
 		await this.checkPermission(userId, workspaceId, WorkspaceRole.SUPER_ADMIN);
 	}
 
+	// 추가: 불리언 반환 헬퍼들 (check* 유지, 예외 기반 호출과 병행 가능)
+	async isUserInWorkspace(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.MEMBER);
+	}
+
+	async isUserAdmin(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.ADMIN);
+	}
+
+	async isUserSuperAdmin(userId: number, workspaceId: number): Promise<boolean> {
+		return this.hasMinimumRole(userId, workspaceId, WorkspaceRole.SUPER_ADMIN);
+	}
+
 	/**
 	 * 특정 역할 이상인지 확인 (public 메서드)
 	 */
@@ -708,6 +738,9 @@ export class WorkspacesService {
 		} finally {
 			await queryRunner.release();
 		}
+		// super admin 위임 후 관리 그룹 멤버 상태 정리
+		await this.addUserToAdminGroup(workspaceId, newSuperAdminId);
+		await this.addUserToAdminGroup(workspaceId, currentSuperAdminId);
 	}
 
 	/**
@@ -746,5 +779,41 @@ export class WorkspacesService {
 		// 5. 역할 업데이트 및 저장
 		targetWorkspaceUser.role = newRole;
 		await this.workspaceUserRepository.save(targetWorkspaceUser);
+		// 역할 변경에 따라 관리자 그룹 멤버 추가/제거
+		if (newRole === WorkspaceRole.ADMIN) {
+			await this.addUserToAdminGroup(workspaceId, targetUserId);
+		} else {
+			await this.removeUserFromAdminGroup(workspaceId, targetUserId);
+		}
+	}
+
+	// --- admin group helper methods ---
+	private async addUserToAdminGroup(workspaceId: number, userId: number): Promise<void> {
+		const adminGroup = await this.groupRepository.findOne({
+			where: { workspaceId, type: GroupType.ADMIN },
+		});
+		if (!adminGroup) return;
+
+		const exists = await this.groupUserRepository.findOne({
+			where: { groupId: adminGroup.id, userId },
+		});
+		if (!exists) {
+			const gu = this.groupUserRepository.create({ groupId: adminGroup.id, userId });
+			await this.groupUserRepository.save(gu);
+		}
+	}
+
+	private async removeUserFromAdminGroup(workspaceId: number, userId: number): Promise<void> {
+		const adminGroup = await this.groupRepository.findOne({
+			where: { workspaceId, type: GroupType.ADMIN },
+		});
+		if (!adminGroup) return;
+
+		const exists = await this.groupUserRepository.findOne({
+			where: { groupId: adminGroup.id, userId },
+		});
+		if (exists) {
+			await this.groupUserRepository.remove(exists);
+		}
 	}
 }

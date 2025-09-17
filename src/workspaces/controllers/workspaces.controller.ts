@@ -248,7 +248,7 @@ export class WorkspacesController {
 	@UseGuards(WorkspaceRoleGuard)
 	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '워크스페이스 사용자 역할 변경 (관리자 이상 권한 필요)' })
-	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiParam({ name: 'workspaceId', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '사용자 역할이 성공적으로 변경되었습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
 	@ApiResponse({ status: 404, description: '워크스페이스 또는 사용자를 찾을 수 없습니다.' })
@@ -337,7 +337,7 @@ export class WorkspacesController {
 
 	@Get(':workspaceId/me')
 	@ApiOperation({ summary: '내 정보 조회' })
-	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiParam({ name: 'workspaceId', description: '워크스페이스 ID' })
 	@ApiResponse({
 		status: 200,
 		description: '내 정보가 성공적으로 조회되었습니다.',
@@ -353,7 +353,7 @@ export class WorkspacesController {
 
 	@Patch(':workspaceId/me')
 	@ApiOperation({ summary: '내 워크스페이스 정보 수정' })
-	@ApiParam({ name: 'id', description: '워크스페이스 ID' })
+	@ApiParam({ name: 'workspaceId', description: '워크스페이스 ID' })
 	@ApiResponse({ status: 200, description: '내 정보가 성공적으로 수정되었습니다.' })
 	@ApiResponse({ status: 403, description: '워크스페이스 권한이 없습니다.' })
 	@ApiResponse({ status: 404, description: '사용자를 찾을 수 없습니다.' })

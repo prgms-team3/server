@@ -111,7 +111,7 @@ export class ReservationsService {
 			.leftJoinAndSelect('reservation.space', 'space')
 			.leftJoinAndSelect('space.workspace', 'workspace')
 			.where('reservation.userId = :userId', { userId })
-			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED] });
+			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED, ReservationStatus.REJECTED] });
 
 		if (status) {
 			queryBuilder.andWhere('reservation.status = :status', { status });
@@ -158,7 +158,7 @@ export class ReservationsService {
 			.leftJoinAndSelect('reservation.space', 'space')
 			.leftJoinAndSelect('reservation.user', 'user')
 			.where('space.workspaceId = :workspaceId', { workspaceId })
-			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED] });
+			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED, ReservationStatus.REJECTED] });
 
 		if (status) {
 			queryBuilder.andWhere('reservation.status = :status', { status });

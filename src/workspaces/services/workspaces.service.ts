@@ -766,10 +766,15 @@ export class WorkspacesService {
 		}
 
 		// 4. 대상 사용자를 찾고, 대상이 SUPER_ADMIN이 아닌지 확인
-		const targetWorkspaceUser = await this.workspaceUserRepository.findOneByOrFail({
-			workspaceId,
-			userId: targetUserId,
+		const targetWorkspaceUser = await this.workspaceUserRepository.findOne({
+			where: {
+				workspaceId,
+				userId: targetUserId,
+			},
 		});
+		if (!targetWorkspaceUser) {
+			throw new AppException(ErrorCode.USER_NOT_IN_WORKSPACE);
+		}
 
 		//	'SUPER_ADMIN의 역할은 변경할 수 없습니다.',
 		if (targetWorkspaceUser.role === WorkspaceRole.SUPER_ADMIN) {

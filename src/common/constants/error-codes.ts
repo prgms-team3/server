@@ -30,6 +30,16 @@ export const ErrorCode = {
 		message: '이미 존재하는 사용자입니다.',
 		status: HttpStatus.CONFLICT,
 	},
+	USER_ALREADY_IN_WORKSPACE: {
+		code: 'USER_ALREADY_IN_WORKSPACE',
+		message: '사용자가 이미 워크스페이스에 속해 있습니다.',
+		status: HttpStatus.CONFLICT,
+	},
+	USER_NOT_IN_WORKSPACE: {
+		code: 'USER_NOT_IN_WORKSPACE',
+		message: '사용자가 워크스페이스에 속해 있지 않습니다.',
+		status: HttpStatus.BAD_REQUEST,
+	},
 
 	// Workspace related errors
 	WORKSPACE_NOT_FOUND: {

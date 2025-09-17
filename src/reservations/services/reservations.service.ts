@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Between, EntityManager, In, Not, Repository } from 'typeorm';
+import { Between, EntityManager, In, Not, Repository, LessThan } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { Space } from '../../spaces/entities/space.entity';
@@ -11,6 +11,7 @@ import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { ReservationQueryDto } from '../dto/reservation-query.dto';
 import { UpdateReservationDto } from '../dto/update-reservation.dto';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class ReservationsService {
@@ -109,7 +110,8 @@ export class ReservationsService {
 			.createQueryBuilder('reservation')
 			.leftJoinAndSelect('reservation.space', 'space')
 			.leftJoinAndSelect('space.workspace', 'workspace')
-			.where('reservation.userId = :userId', { userId });
+			.where('reservation.userId = :userId', { userId })
+			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED, ReservationStatus.REJECTED] });
 
 		if (status) {
 			queryBuilder.andWhere('reservation.status = :status', { status });
@@ -155,7 +157,8 @@ export class ReservationsService {
 			.createQueryBuilder('reservation')
 			.leftJoinAndSelect('reservation.space', 'space')
 			.leftJoinAndSelect('reservation.user', 'user')
-			.where('space.workspaceId = :workspaceId', { workspaceId });
+			.where('space.workspaceId = :workspaceId', { workspaceId })
+			.andWhere('reservation.status IN (:...statuses)', { statuses: [ReservationStatus.APPROVED, ReservationStatus.PENDING, ReservationStatus.COMPLETED, ReservationStatus.REJECTED] });
 
 		if (status) {
 			queryBuilder.andWhere('reservation.status = :status', { status });
@@ -454,6 +457,31 @@ export class ReservationsService {
 
 		return { availableSlots };
 	}
+
+    /**
+     * 만료된 예약을 COMPLETED 상태로 변경하는 스케줄러
+     * 업무 시간(9:00-18:00) 동안 30분 간격으로 실행
+     */
+    @Cron('0,30 0-9 * * *')
+    async markCompletedReservations(): Promise<void> {
+        try {
+            const now = new Date();
+            
+            const result = await this.reservationRepository.update(
+                {
+                    status: ReservationStatus.APPROVED,
+                    endTime: LessThan(now)
+                },
+                {
+                    status: ReservationStatus.COMPLETED
+                }
+            );
+
+            console.log(`[Scheduler] ${result.affected} reservations marked as COMPLETED at ${now.toISOString()}`);
+        } catch (error) {
+            console.error('[Scheduler] Error marking completed reservations:', error);
+        }
+    }
 
 	/**
 	 * 예약 가능 여부 확인

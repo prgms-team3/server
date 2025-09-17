@@ -117,8 +117,8 @@ export class GroupsService {
 		return await this.groupRepository.save(group);
 	}
 
-	async remove(id: number, userId: number): Promise<void> {
-		const group = await this.findOne(id);
+	async remove(groupId: number, userId: number): Promise<void> {
+		const group = await this.findOne(groupId);
 
 		// 관리자 권한 확인
 		if (!this.workspacesService.isUserAdmin(userId, group.workspaceId)) {

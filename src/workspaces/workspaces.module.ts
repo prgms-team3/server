@@ -12,6 +12,7 @@ import { WorkspacesService } from './services/workspaces.service';
 import { UsersService } from '../users/services/users.service';
 import { User } from '../users/entities/user.entity';
 import { GroupUser } from 'src/groups/entities/group-user.entity';
+import { forwardRef } from '@nestjs/common';
 
 @Module({
 	imports: [
@@ -24,8 +25,8 @@ import { GroupUser } from 'src/groups/entities/group-user.entity';
 			Group,
 			GroupUser,
 		]),
-		AuthModule,
-		UsersModule,
+		forwardRef(() => AuthModule),
+		forwardRef(() => UsersModule),
 	],
 	controllers: [WorkspacesController],
 	providers: [WorkspacesService, UsersService],

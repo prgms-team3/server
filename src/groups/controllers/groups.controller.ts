@@ -70,8 +70,7 @@ export class GroupsController {
 		return this.groupsService.findByWorkspace(workspaceId, req.user.sub);
 	}
 
-	// 정적 라우트를 동적 라우트보다 먼저 선언
-	@Get('deleted')
+	@Get('workspace/:workspaceId/deleted')
 	@UseGuards(WorkspaceRoleGuard)
 	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '삭제된 그룹 목록 조회 (관리자)' })
@@ -123,16 +122,18 @@ export class GroupsController {
 	@ApiParam({
 		name: 'groupId',
 		description: '삭제할 그룹의 고유 ID',
-		schema: { type: 'string' },
+		schema: { type: 'number' },
 	})
 	@ApiResponse({ status: 200, description: '그룹이 성공적으로 삭제됨' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	remove(@Param('groupId') groupId: string, @Req() req: AuthenticatedRequest): Promise<void> {
-		return this.groupsService.remove(+groupId, req.user.sub);
+	remove(@Param('groupId') groupId: number, @Req() req: AuthenticatedRequest): Promise<void> {
+		return this.groupsService.remove(groupId, req.user.sub);
 	}
 
 	// 멤버 관련 엔드포인트들
 	@Post(':groupId/join')
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '그룹 가입 (본인)' })
 	@ApiParam({
 		name: 'groupId',
@@ -155,6 +156,8 @@ export class GroupsController {
 	}
 
 	@Delete(':groupId/leave')
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '그룹 탈퇴 (본인)' })
 	@ApiParam({
 		name: 'groupId',
@@ -173,6 +176,8 @@ export class GroupsController {
 	}
 
 	@Get(':groupId/members')
+	@UseGuards(WorkspaceRoleGuard)
+	@WorkspaceRoles(WorkspaceRole.MEMBER, WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({ summary: '그룹 멤버 목록 조회 (모두)' })
 	@ApiParam({
 		name: 'groupId',

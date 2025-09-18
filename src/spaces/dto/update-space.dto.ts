@@ -7,7 +7,10 @@ import {
 	IsString,
 	MaxLength,
 	Min,
+	ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { SpaceImageDto } from './space-image.dto';
 
 export class UpdateSpaceDto {
 	@ApiProperty({
@@ -63,4 +66,18 @@ export class UpdateSpaceDto {
 	@IsArray()
 	@IsString({ each: true, message: '시설명은 문자열이어야 합니다.' })
 	amenities?: string[];
+
+	@ApiProperty({
+		description: 'Space images',
+		type: [SpaceImageDto],
+		example: [
+			{ imageUrl: 'https://example.com/image1.jpg', imageType: 'PHOTO' },
+			{ imageUrl: 'https://example.com/image2.jpg', imageType: 'FLOOR_PLAN' }
+		]
+	})
+	@IsOptional()
+	@IsArray()
+	@ValidateNested({ each: true })
+	@Type(() => SpaceImageDto)
+	images?: SpaceImageDto[];
 }

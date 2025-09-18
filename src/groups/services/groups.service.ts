@@ -27,20 +27,12 @@ export class GroupsService {
 		private workspaceUserRepository: Repository<WorkspaceUser>,
 	) {}
 
-	async create(createGroupDto: CreateGroupDto, userId: number): Promise<Group> {
+	async create(createGroupDto: CreateGroupDto): Promise<Group> {
 		const group = this.groupRepository.create({
 			...createGroupDto,
 		});
 
 		const savedGroup = await this.groupRepository.save(group);
-
-		// 생성자(현재 유저)를 그룹의 관리자로 자동 추가
-		const creatorMember = this.groupUserRepository.create({
-			groupId: savedGroup.id,
-			userId,
-		});
-
-		await this.groupUserRepository.save(creatorMember); // 저장 추가
 
 		return savedGroup;
 	}

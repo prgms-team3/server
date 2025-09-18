@@ -81,3 +81,34 @@ export function convertDatesToKoreanTime<T>(obj: T, visited = new WeakMap()): T 
 
 	return obj;
 }
+
+/**
+ * 한국 시간대 기준으로 특정 날짜의 특정 시간을 생성
+ * @param date 기준 날짜 (YYYY-MM-DD 형식)
+ * @param hour 시간 (0-23)
+ * @param minute 분 (0-59)
+ * @param second 초 (0-59)
+ * @param millisecond 밀리초 (0-999)
+ * @returns 한국 시간대 기준 Date 객체
+ */
+export function createKoreanDateTime(
+	date: string | Date,
+	hour: number = 0,
+	minute: number = 0,
+	second: number = 0,
+	millisecond: number = 0
+): Date {
+	const targetDate = typeof date === 'string' ? new Date(date) : date;
+	
+	// 한국 시간대(UTC+9) 기준으로 시간 생성
+	const koreanTime = new Date();
+	koreanTime.setUTCFullYear(targetDate.getFullYear());
+	koreanTime.setUTCMonth(targetDate.getMonth());
+	koreanTime.setUTCDate(targetDate.getDate());
+	koreanTime.setUTCHours(hour - 9); // UTC로 변환 (한국시간 - 9시간)
+	koreanTime.setUTCMinutes(minute);
+	koreanTime.setUTCSeconds(second);
+	koreanTime.setUTCMilliseconds(millisecond);
+	
+	return koreanTime;
+}

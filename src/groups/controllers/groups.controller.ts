@@ -194,8 +194,9 @@ export class GroupsController {
 	@UseGuards(WorkspaceRoleGuard)
 	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({
-		summary: '관리자가 멤버를 그룹에 추가',
-		description: '그룹 관리자가 특정 사용자를 그룹에 추가합니다.',
+		summary: '관리자가 멤버를 그룹에 추가 (관리자)',
+		description:
+			'그룹 관리자가 특정 사용자를 그룹에 추가합니다. 관리자 그룹은 슈퍼관리자만 가능합니다.',
 	})
 	@ApiParam({
 		name: 'groupId',
@@ -228,7 +229,8 @@ export class GroupsController {
 	@WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.SUPER_ADMIN)
 	@ApiOperation({
 		summary: '관리자가 멤버를 그룹에서 제거 (관리자)',
-		description: '그룹 관리자가 특정 멤버를 그룹에서 제거합니다.',
+		description:
+			'그룹 관리자가 특정 멤버를 그룹에서 제거합니다. 관리자 그룹은 슈퍼관리자만 가능합니다.',
 	})
 	@ApiParam({
 		name: 'groupId',

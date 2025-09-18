@@ -107,7 +107,7 @@ export class WorkspacesService {
 	}
 
 	/**
-	 * 워크스페이스 목록 조회 (사용자가 속한)
+	 * 워크스페이스 목록 조회 (사용자가 속한) - 최적화된 버전
 	 */
 	async findUserWorkspaces(
 		query: WorkspaceQueryDto,
@@ -116,11 +116,18 @@ export class WorkspacesService {
 		const { page = 1, limit = 10, search } = query;
 		const skip = (page - 1) * limit;
 
+		// 서브쿼리를 사용하여 유저 수를 함께 조회하는 최적화된 쿼리
 		const queryBuilder = this.workspaceRepository
 			.createQueryBuilder('workspace')
-			.leftJoinAndSelect('workspace.workspaceUsers', 'workspaceUsers')
+			.leftJoinAndSelect('workspace.workspaceUsers', 'currentUserWorkspace', 'currentUserWorkspace.userId = :userId')
 			.leftJoinAndSelect('workspace.invitationCodes', 'invitationCodes')
-			.where('workspaceUsers.userId = :userId', { userId })
+			.addSelect((subQuery) => {
+				return subQuery
+					.select('COUNT(wu.id)', 'userCount')
+					.from('workspace_user', 'wu')
+					.where('wu.workspaceId = workspace.id');
+			}, 'userCount')
+			.where('currentUserWorkspace.userId = :userId', { userId })
 			.andWhere('workspace.deleted = :deleted', { deleted: false })
 			.andWhere((qb) => {
 				// ADMIN 이상 권한을 가진 워크스페이스는 isActive 상관없이 조회
@@ -150,16 +157,16 @@ export class WorkspacesService {
 		}
 
 		const total = await queryBuilder.getCount();
-		let workspaces = await queryBuilder
+		const results = await queryBuilder
 			.orderBy('workspace.createdAt', 'DESC')
 			.skip(skip)
 			.take(limit)
-			.getMany();
+			.getRawAndEntities();
 
 		// 각 워크스페이스에 대해 활성화된 초대 코드와 사용자 역할 정보 처리
-		const workspacesWithActiveInvitationCodes = workspaces.map((workspace) => {
+		const workspacesWithActiveInvitationCodes = results.entities.map((workspace, index) => {
 			const activeInvitationCode = workspace.invitationCodes.find((code) => code.isActive);
-			const userCount = workspace.workspaceUsers.length; // 워크스페이스에 속한 유저 수 계산
+			const userCount = parseInt(results.raw[index].userCount) || 0; // 서브쿼리에서 계산된 유저 수
 
 			// 사용자의 해당 워크스페이스에서의 역할 확인
 			const userRole =

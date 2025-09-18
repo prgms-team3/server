@@ -170,6 +170,10 @@ export class GroupsService {
 			throw new NotFoundException('그룹을 찾을 수 없습니다');
 		}
 
+		if (group.type === GroupType.ADMIN) {
+			throw new ForbiddenException('관리자 그룹에는 가입할 수 없습니다');
+		}
+
 		// 워크스페이스 멤버십 검증
 		await this.validateWorkspaceMembership(userId, group.workspaceId);
 
@@ -215,7 +219,23 @@ export class GroupsService {
 			throw new BadRequestException('그룹 멤버가 아닙니다');
 		}
 
+		// SUPER_ADMIN은 탈퇴 불가
+		const workspaceUser = await this.workspaceUserRepository.findOne({
+			where: { workspaceId: group.workspaceId, userId },
+		});
+		if (workspaceUser?.role === WorkspaceRole.SUPER_ADMIN) {
+			throw new ForbiddenException('SUPER_ADMIN은 그룹을 탈퇴할 수 없습니다');
+		}
+
 		await this.groupUserRepository.remove(member);
+
+		// 관리자 그룹이면 바로 권한 회수
+		if (group.type === GroupType.ADMIN) {
+			if (workspaceUser && workspaceUser.role !== WorkspaceRole.ADMIN) {
+				workspaceUser.role = WorkspaceRole.MEMBER;
+				await this.workspaceUserRepository.save(workspaceUser);
+			}
+		}
 	}
 
 	async getMembers(groupId: number): Promise<GroupUser[]> {
@@ -245,7 +265,17 @@ export class GroupsService {
 			throw new NotFoundException('그룹을 찾을 수 없습니다.');
 		}
 
-		// 관리자 권한 확인
+		// 관리자 그룹은 SUPER_ADMIN만 수정 가능
+		if (group.type === GroupType.ADMIN) {
+			const actingWorkspaceUser = await this.workspaceUserRepository.findOne({
+				where: { workspaceId: group.workspaceId, userId: adminId },
+			});
+			if (actingWorkspaceUser?.role !== WorkspaceRole.SUPER_ADMIN) {
+				throw new ForbiddenException('관리자 그룹은 SUPER_ADMIN만 수정할 수 있습니다');
+			}
+		}
+
+		// 관리자 권한 확인 (기존 체크 유지, 필요시 중복 제거)
 		if (!this.workspacesService.isUserAdmin(adminId, group.workspaceId)) {
 			throw new ForbiddenException('관리자만 삭제할 수 있습니다');
 		}
@@ -269,7 +299,27 @@ export class GroupsService {
 			userId,
 		});
 
-		return await this.groupUserRepository.save(groupUser);
+		const saved = await this.groupUserRepository.save(groupUser);
+
+		// 관리 그룹이면 워크스페이스 권한 부여
+		if (group.type === GroupType.ADMIN) {
+			let workspaceUser = await this.workspaceUserRepository.findOne({
+				where: { workspaceId: group.workspaceId, userId },
+			});
+			if (!workspaceUser) {
+				workspaceUser = this.workspaceUserRepository.create({
+					workspaceId: group.workspaceId,
+					userId,
+					role: WorkspaceRole.ADMIN,
+				});
+				await this.workspaceUserRepository.save(workspaceUser);
+			} else if (workspaceUser.role === WorkspaceRole.MEMBER) {
+				workspaceUser.role = WorkspaceRole.ADMIN;
+				await this.workspaceUserRepository.save(workspaceUser);
+			}
+		}
+
+		return saved;
 	}
 
 	/**
@@ -286,28 +336,50 @@ export class GroupsService {
 			throw new NotFoundException('그룹을 찾을 수 없습니다.');
 		}
 
+		// 관리자 그룹은 SUPER_ADMIN만 수정 가능
+		if (group.type === GroupType.ADMIN) {
+			const actingWorkspaceUser = await this.workspaceUserRepository.findOne({
+				where: { workspaceId: group.workspaceId, userId: adminId },
+			});
+			if (actingWorkspaceUser?.role !== WorkspaceRole.SUPER_ADMIN) {
+				throw new ForbiddenException('관리자 그룹은 SUPER_ADMIN만 수정할 수 있습니다');
+			}
+		}
+
 		// 자신을 제거하려는 시도 방지
 		if (userId === adminId) {
 			throw new BadRequestException('자신을 제거할 수 없습니다. 그룹 탈퇴를 이용해주세요.');
 		}
 
-		// 관리자 권한 확인
-		if (!this.workspacesService.isUserAdmin(userId, group.workspaceId)) {
+		// 관리자 권한 확인 (FIX: adminId로 확인)
+		if (!this.workspacesService.isUserAdmin(adminId, group.workspaceId)) {
 			throw new ForbiddenException('관리자만 삭제할 수 있습니다');
 		}
 
-		// 제거할 사용자가 멤버인지 확인 (엔티티 메서드 활용)
-		if (!group.isUserInGroup(userId)) {
-			throw new NotFoundException('해당 사용자는 그룹 멤버가 아닙니다.');
-		}
-
-		// 실제 멤버 엔티티 조회 후 제거
+		// 제거할 사용자가 멤버인지 확인
 		const targetMembership = await this.groupUserRepository.findOne({
 			where: { groupId, userId },
 		});
+		if (!targetMembership) {
+			throw new NotFoundException('해당 사용자는 그룹 멤버가 아닙니다.');
+		}
 
-		if (targetMembership) {
-			await this.groupUserRepository.remove(targetMembership);
+		// SUPER_ADMIN은 제거 불가
+		const targetWorkspaceUser = await this.workspaceUserRepository.findOne({
+			where: { workspaceId: group.workspaceId, userId },
+		});
+		if (targetWorkspaceUser?.role === WorkspaceRole.SUPER_ADMIN) {
+			throw new ForbiddenException('SUPER_ADMIN은 그룹에서 제거할 수 없습니다');
+		}
+
+		await this.groupUserRepository.remove(targetMembership);
+
+		// 관리 그룹이면 바로 권한 회수 (관리자 그룹은 워크스페이스 당 하나뿐)
+		if (group.type === GroupType.ADMIN) {
+			if (targetWorkspaceUser && targetWorkspaceUser.role !== WorkspaceRole.ADMIN) {
+				targetWorkspaceUser.role = WorkspaceRole.MEMBER;
+				await this.workspaceUserRepository.save(targetWorkspaceUser);
+			}
 		}
 	}
 

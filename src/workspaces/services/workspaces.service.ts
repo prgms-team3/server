@@ -1,11 +1,14 @@
 import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common'; // Inject 제거
 import { User } from 'src/users/entities/user.entity';
+import { Reservation, ReservationStatus } from '../../reservations/entities/reservation.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { UsersService } from '../../users/services/users.service';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Group } from '../../groups/entities/group.entity';
+import { GroupType } from '../../groups/entities/group.entity';
 import { GroupUser } from '../../groups/entities/group-user.entity';
 import { AddUserToWorkspaceDto } from '../dto/add-user-to-workspace.dto';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
@@ -22,8 +25,6 @@ import {
 	WorkspaceWithActiveInvitationCode,
 } from '../dto/workspace-response.dto';
 import { UpdateWorkspaceUserDto } from '../dto/update-user-to-workspace.dto';
-import { Group } from '../../groups/entities/group.entity';
-import { GroupType } from '../../groups/entities/group.entity';
 
 @Injectable()
 export class WorkspacesService {
@@ -41,6 +42,9 @@ export class WorkspacesService {
 		private groupRepository: Repository<Group>,
 		@InjectRepository(GroupUser)
 		private groupUserRepository: Repository<GroupUser>,
+		// 추가: 예약 리포지토리 주입
+		@InjectRepository(Reservation)
+		private reservationRepository: Repository<Reservation>,
 	) {}
 
 	/**
@@ -373,9 +377,50 @@ export class WorkspacesService {
 		// 사용자가 워크스페이스에 속해있는지 확인
 		await this.checkUserInWorkspace(userId, workspaceId);
 
-		return this.workspaceUserRepository.find({
+		const workspaceUsers = await this.workspaceUserRepository.find({
 			where: { workspaceId },
 			relations: ['user'],
+		});
+
+		// 이번 달(한국시간) 시작/끝 계산
+		const now = new Date();
+		const koreaNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+		const startOfMonth = new Date(
+			Date.UTC(koreaNow.getUTCFullYear(), koreaNow.getUTCMonth(), 1, 0, 0, 0, 0),
+		);
+		const endOfMonth = new Date(
+			Date.UTC(koreaNow.getUTCFullYear(), koreaNow.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+		);
+
+		// 사용자별 월간 예약 건수 조회 (space와 조인하여 workspace 기준 필터)
+		const rawCounts = await this.reservationRepository
+			.createQueryBuilder('reservation')
+			.leftJoin('reservation.space', 'space')
+			.select('reservation.userId', 'userId')
+			.addSelect('COUNT(reservation.id)', 'count')
+			.where('space.workspaceId = :workspaceId', { workspaceId })
+			.andWhere('reservation.status IN (:...statuses)', {
+				statuses: [ReservationStatus.APPROVED, ReservationStatus.COMPLETED],
+			})
+			.andWhere('reservation.startTime BETWEEN :startOfMonth AND :endOfMonth', {
+				startOfMonth,
+				endOfMonth,
+			})
+			.groupBy('reservation.userId')
+			.getRawMany();
+
+		const countMap = new Map<number, number>();
+		for (const row of rawCounts) {
+			const uid = Number(row.userId);
+			const cnt = Number(row.count);
+			countMap.set(uid, cnt);
+		}
+
+		// 각 WorkspaceUser에 monthlyReservationCount 필드 주입 (선택적 확장)
+		return workspaceUsers.map((wu) => {
+			// @ts-ignore: dynamic property 추가
+			(wu as any).monthlyReservationCount = countMap.get(wu.userId) ?? 0;
+			return wu;
 		});
 	}
 

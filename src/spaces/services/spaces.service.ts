@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Like, Repository, In } from 'typeorm';
+import { Between, Like, Repository, In, DataSource, QueryRunner } from 'typeorm';
 import { ErrorCode } from '../../common/constants/error-codes';
 import { AppException } from '../../common/exceptions/app.exception';
 import { WorkspaceRole, WorkspaceUser } from '../../workspaces/entities/workspace-user.entity';
@@ -9,8 +9,10 @@ import { CreateSpaceDto } from '../dto/create-space.dto';
 import { CreateUnavailableTimeDto } from '../dto/create-unavailable-time.dto';
 import { SpaceQueryDto } from '../dto/space-query.dto';
 import { UpdateSpaceDto } from '../dto/update-space.dto';
+import { SpaceImageDto } from '../dto/space-image.dto';
 import { Space } from '../entities/space.entity';
 import { UnavailableTime } from '../entities/unavailable-time.entity';
+import { SpaceImage, ImageType } from '../entities/space-image.entity';
 @Injectable()
 export class SpacesService {
 	constructor(
@@ -22,6 +24,9 @@ export class SpacesService {
 		private workspaceUserRepository: Repository<WorkspaceUser>,
 		@InjectRepository(Reservation)
 		private reservationRepository: Repository<Reservation>,
+		@InjectRepository(SpaceImage)
+		private spaceImageRepository: Repository<SpaceImage>,
+		private dataSource: DataSource,
 	) {}
 
 	/**
@@ -35,14 +40,72 @@ export class SpacesService {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, workspaceId);
 
-		const space = this.spaceRepository.create({
-			...createSpaceDto,
-			workspaceId,
+		// 이미지 URL 배열 추출
+		const { images, ...spaceData } = createSpaceDto;
+
+		// 트랜잭션 사용
+		const queryRunner = this.dataSource.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction();
+
+		try {
+			// 공간 생성
+			const space = this.spaceRepository.create({
+				...spaceData,
+				workspaceId,
+			});
+
+			const savedSpace = await queryRunner.manager.save(space);
+
+			// 이미지가 있으면 이미지 저장
+			if (images && images.length > 0) {
+				await this.saveSpaceImagesWithQueryRunner(queryRunner, savedSpace.id, images);
+			}
+
+			await queryRunner.commitTransaction();
+			return this.findOne(savedSpace.id, userId);
+		} catch (error) {
+			await queryRunner.rollbackTransaction();
+			throw error;
+		} finally {
+			await queryRunner.release();
+		}
+	}
+
+	/**
+	 * 공간 이미지 저장
+	 */
+	private async saveSpaceImages(spaceId: number, images: SpaceImageDto[]): Promise<void> {
+		// 이미지 엔티티 생성
+		const spaceImages = images.map((image, index) => {
+			return this.spaceImageRepository.create({
+				spaceId,
+				imageUrl: image.imageUrl,
+				imageType: image.imageType, // 요청으로 전달된 이미지 타입 사용
+				displayOrder: index + 1, // 전달된 순서대로 표시 순서 설정
+			});
 		});
 
-		const savedSpace = await this.spaceRepository.save(space);
+		// 이미지 저장
+		await this.spaceImageRepository.save(spaceImages);
+	}
 
-		return this.findOne(savedSpace.id, userId);
+	/**
+	 * 트랜잭션 내에서 공간 이미지 저장
+	 */
+	private async saveSpaceImagesWithQueryRunner(queryRunner: QueryRunner, spaceId: number, images: SpaceImageDto[]): Promise<void> {
+		// 이미지 엔티티 생성
+		const spaceImages = images.map((image, index) => {
+			return this.spaceImageRepository.create({
+				spaceId,
+				imageUrl: image.imageUrl,
+				imageType: image.imageType, // 요청으로 전달된 이미지 타입 사용
+				displayOrder: index + 1, // 전달된 순서대로 표시 순서 설정
+			});
+		});
+
+		// 이미지 저장
+		await queryRunner.manager.save(spaceImages);
 	}
 
 	/**
@@ -125,10 +188,36 @@ export class SpacesService {
 		// 관리자 권한 확인
 		await this.checkUserIsAdmin(userId, space.workspaceId);
 
-		Object.assign(space, updateSpaceDto);
-		await this.spaceRepository.save(space);
+		// 이미지 URL 배열 추출
+		const { images, ...spaceData } = updateSpaceDto;
 
-		return this.findOne(id, userId);
+		// 트랜잭션 사용
+		const queryRunner = this.dataSource.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction();
+
+		try {
+			// 공간 정보 업데이트
+			Object.assign(space, spaceData);
+			await queryRunner.manager.save(space);
+
+			// 이미지가 있으면 이미지 업데이트
+			if (images && images.length > 0) {
+				// 기존 이미지 삭제
+				await queryRunner.manager.delete(SpaceImage, { spaceId: id });
+				
+				// 새 이미지 저장
+				await this.saveSpaceImagesWithQueryRunner(queryRunner, id, images);
+			}
+
+			await queryRunner.commitTransaction();
+			return this.findOne(id, userId);
+		} catch (error) {
+			await queryRunner.rollbackTransaction();
+			throw error;
+		} finally {
+			await queryRunner.release();
+		}
 	}
 
 	/**

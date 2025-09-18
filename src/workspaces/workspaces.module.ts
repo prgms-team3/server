@@ -13,6 +13,7 @@ import { UsersService } from '../users/services/users.service';
 import { User } from '../users/entities/user.entity';
 import { GroupUser } from 'src/groups/entities/group-user.entity';
 import { forwardRef } from '@nestjs/common';
+import { Reservation } from '../reservations/entities/reservation.entity';
 
 @Module({
 	imports: [
@@ -24,6 +25,7 @@ import { forwardRef } from '@nestjs/common';
 			User,
 			Group,
 			GroupUser,
+			Reservation,
 		]),
 		forwardRef(() => AuthModule),
 		forwardRef(() => UsersModule),

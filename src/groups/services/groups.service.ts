@@ -97,12 +97,9 @@ export class GroupsService {
 	async update(id: number, updateGroupDto: UpdateGroupDto, userId: number): Promise<Group> {
 		const group = await this.findOne(id);
 
-		const isWorkspaceAdmin = await this.workspacesService.isUserAdmin(
-			group.workspace?.id ?? group.workspaceId,
-			userId,
-		);
-		if (!isWorkspaceAdmin) {
-			throw new ForbiddenException('그룹 관리자만 수정할 수 있습니다');
+		// 관리자 권한 확인
+		if (!this.workspacesService.isUserAdmin(userId, group.workspaceId)) {
+			throw new ForbiddenException('관리자만 수정할 수 있습니다');
 		}
 
 		Object.assign(group, updateGroupDto);

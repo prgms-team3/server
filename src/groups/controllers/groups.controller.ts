@@ -44,8 +44,8 @@ export class GroupsController {
 	@ApiResponse({ status: 400, description: '잘못된 요청 데이터입니다.' })
 	@ApiResponse({ status: 401, description: '사용자 인증 실패' })
 	@ApiResponse({ status: 403, description: '워크스페이스 관리자 권한이 없습니다.' })
-	async create(@Body() createGroupDto: CreateGroupDto, @Req() req: AuthenticatedRequest) {
-		return this.groupsService.create(createGroupDto, req.user.sub);
+	async create(@Body() createGroupDto: CreateGroupDto) {
+		return this.groupsService.create(createGroupDto);
 	}
 
 	@Get()
